@@ -19,9 +19,10 @@
     <li class="<?= h($a['type']) ?>">
       <div class="head">
         <?= $a['user_id'] ? avatar($a['who'], $a['user_id']) : '' ?>
-        <b><?= h(['note' => 'Note', 'call' => 'Call', 'email' => 'Email', 'visit' => 'Site visit', 'stage' => 'Update', 'system' => 'Auto'][$a['type']] ?? ucfirst($a['type'])) ?></b>
+        <?php $fromClient = !empty($a['portal_user_id']) && $a['type'] === 'note'; ?>
+        <b><?= $fromClient ? 'Client message' : h(['note' => 'Note', 'call' => 'Call', 'email' => 'Email', 'visit' => 'Site visit', 'stage' => 'Update', 'system' => 'Auto'][$a['type']] ?? ucfirst($a['type'])) ?></b><?= !empty($a['is_public']) ? '<span class="pubtag" title="Visible in the client portal">Client sees this</span>' : '' ?>
         <span><?= h($a['who'] ?? 'System') ?> · <time title="<?= h($a['created_at']) ?>"><?= h(ago($a['created_at'])) ?></time></span>
-        <?php if (in_array($a['type'], ['note', 'call', 'email', 'visit'], true) && ((int)$a['user_id'] === uid() || is_role('admin'))): ?>
+        <?php if (in_array($a['type'], ['note', 'call', 'email', 'visit'], true) && empty($a['portal_user_id']) && ((int)$a['user_id'] === uid() || is_role('admin'))): ?>
         <form method="post" action="/activities/<?= (int)$a['id'] ?>/delete" data-confirm="Delete this entry?" style="margin-left:auto"><?= csrf_field() ?><button class="linkbtn" type="submit">delete</button></form>
         <?php endif; ?>
       </div>

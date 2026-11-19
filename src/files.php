@@ -34,7 +34,7 @@ function file_size_fmt(int $b): string {
 
 /** Files for one record, images first then newest */
 function files_for(string $type, int $id): array {
-    return all('SELECT f.*, u.name AS uploader FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
+    return all('SELECT f.*, COALESCE(u.name, CONCAT(pu.name, " (client)")) AS uploader FROM files f LEFT JOIN users u ON u.id = f.uploaded_by LEFT JOIN portal_users pu ON pu.id = f.portal_user_id
                 WHERE f.entity_type = ? AND f.entity_id = ? ORDER BY f.is_image DESC, f.id DESC', [$type, $id]);
 }
 

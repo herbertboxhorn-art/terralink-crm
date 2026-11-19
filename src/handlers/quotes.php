@@ -105,7 +105,7 @@ function load_quote(int $id): array {
 
 function h_quote_show(int $id): void {
     [$qt, $items, $tot] = load_quote($id);
-    $timeline = all("SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity_type = 'quote' AND a.entity_id = ? ORDER BY a.created_at DESC", [$id]);
+    $timeline = all("SELECT a.*, COALESCE(u.name, CONCAT(pu.name, ' (client)')) who FROM activities a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN portal_users pu ON pu.id = a.portal_user_id WHERE a.entity_type = 'quote' AND a.entity_id = ? ORDER BY a.created_at DESC", [$id]);
     view('quote', ['title' => $qt['number'] . ' — ' . $qt['title'], 'qt' => $qt, 'items' => $items, 'tot' => $tot, 'timeline' => $timeline, 'stock' => quote_stock($id)]);
 }
 
@@ -181,8 +181,22 @@ function h_quote_status(int $id): void {
     if (!$qt) not_found();
     $st = (string)post('status', '');
     if (!isset(QUOTE_STATUS[$st]) || $st === $qt['status']) redirect("/quotes/$id");
+    flash(quote_set_status($qt, $st));
+    redirect("/quotes/$id");
+}
+
+/**
+ * Changes a quote's status with all side effects (stock reserve/release, deal won/lost).
+ * $client = ['name' =>, 'portal_user_id' =>] when the client decided in the portal. Returns a message.
+ */
+function quote_set_status(array $qt, string $st, ?array $client = null): string {
+    $id = (int)$qt['id'];
     q('UPDATE quotes SET status = ? WHERE id = ?', [$st, $id]);
-    log_activity('stage', 'quote', $id, "Quote {$qt['number']}: " . QUOTE_STATUS[$qt['status']] . ' → ' . QUOTE_STATUS[$st], (int)$qt['company_id']);
+    if ($client) q('UPDATE quotes SET client_decision_at = NOW(), client_decision_by = ? WHERE id = ?', [$client['name'], $id]);
+    $via = $client ? ' by ' . $client['name'] . ' in the client portal' : '';
+    $logQ = fn(string $type, string $et, int $eid, string $body) => q('INSERT INTO activities (entity_type, entity_id, company_id, user_id, portal_user_id, type, body) VALUES (?,?,?,?,?,?,?)',
+        [$et, $eid, (int)$qt['company_id'], uid(), $client['portal_user_id'] ?? null, $type, $body]);
+    $logQ('stage', 'quote', $id, "Quote {$qt['number']}: " . QUOTE_STATUS[$qt['status']] . ' → ' . QUOTE_STATUS[$st] . $via);
     $stockMsg = '';
     if (in_array($st, ['declined', 'expired'], true) && quote_release($id, 'quote ' . strtolower(QUOTE_STATUS[$st]))) $stockMsg = ' Its reserved stock was released.';
     if ($st === 'accepted' && quote_stock($id)) $stockMsg = ' ' . quote_reserve($id);
@@ -191,14 +205,13 @@ function h_quote_status(int $id): void {
         $new = $st === 'accepted' ? 'won' : 'lost';
         $deal = one('SELECT stage, title FROM deals WHERE id = ?', [$qt['deal_id']]);
         if ($deal && $deal['stage'] !== $new) {
-            [$tot] = [quote_totals(all('SELECT * FROM quote_items WHERE quote_id = ?', [$id]), (float)$qt['gst_rate'], (float)$qt['pst_rate'])];
+            $tot = quote_totals(all('SELECT * FROM quote_items WHERE quote_id = ?', [$id]), (float)$qt['gst_rate'], (float)$qt['pst_rate']);
             q('UPDATE deals SET stage = ?, stage_changed_at = NOW()' . ($new === 'won' ? ', value = ?' : '') . ' WHERE id = ?',
               $new === 'won' ? [$new, $tot['subtotal'], $qt['deal_id']] : [$new, $qt['deal_id']]);
-            log_activity('stage', 'deal', (int)$qt['deal_id'], STAGES[$deal['stage']] . ' → ' . STAGES[$new] . " (via quote {$qt['number']})", (int)$qt['company_id']);
+            $logQ('stage', 'deal', (int)$qt['deal_id'], STAGES[$deal['stage']] . ' → ' . STAGES[$new] . " (via quote {$qt['number']}$via)");
         }
     }
-    flash('Quote marked ' . strtolower(QUOTE_STATUS[$st]) . '.' . $stockMsg);
-    redirect("/quotes/$id");
+    return 'Quote marked ' . strtolower(QUOTE_STATUS[$st]) . '.' . $stockMsg;
 }
 
 function h_quote_duplicate(int $id): void {

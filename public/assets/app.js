@@ -24,6 +24,14 @@
     cb.addEventListener('change', () => { tl?.classList.toggle('hide-system', cb.checked); try { localStorage.setItem('tl-hide-system', cb.checked ? '1' : '0'); } catch (e) {} });
   });
 
+  // Portal login presets <-> permission ticks
+  $$('[data-preset]').forEach(sel => {
+    const boxes = $$('.perms input[type=checkbox]', sel.form);
+    const apply = () => { const o = sel.selectedOptions[0]; if (!o?.dataset.perms) return; const on = o.dataset.perms.split(','); boxes.forEach(b => b.checked = on.includes(b.name)); };
+    sel.addEventListener('change', apply); apply();
+    boxes.forEach(b => b.addEventListener('change', () => { sel.value = ''; }));
+  });
+
   // Mobile "More" drawer
   $$('[data-toggle-nav]').forEach(b => b.addEventListener('click', () => document.body.classList.toggle('nav-open')));
 
@@ -208,3 +216,9 @@ document.querySelectorAll('form[data-upload]').forEach(f => {
   box.addEventListener('input', refresh);
   refresh();
 })();
+
+// v1.14 portal: show how many files are picked (forms that don't auto-upload)
+document.querySelectorAll('input[type=file][data-count]').forEach(inp => inp.addEventListener('change', () => {
+  const msg = inp.closest('form').querySelector('.upmsg');
+  if (msg) msg.textContent = inp.files.length ? `${inp.files.length} file${inp.files.length > 1 ? 's' : ''} ready to send` : '';
+}));

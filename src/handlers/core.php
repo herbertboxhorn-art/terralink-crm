@@ -105,7 +105,8 @@ function h_company_show(int $id): void {
         'tickets'  => all('SELECT t.*, u.name assignee FROM tickets t LEFT JOIN users u ON u.id = t.assigned_to WHERE t.company_id = ? ORDER BY t.status = "closed", t.created_at DESC LIMIT 50', [$id]),
         'quotes'   => all('SELECT q.*, (SELECT COALESCE(SUM(qty*unit_price),0) FROM quote_items qi WHERE qi.quote_id = q.id) subtotal FROM quotes q WHERE q.company_id = ? ORDER BY q.issued_on DESC', [$id]),
         'tasks'    => all('SELECT t.*, u.name assignee FROM tasks t LEFT JOIN users u ON u.id = t.assigned_to WHERE t.company_id = ? AND t.done_at IS NULL ORDER BY t.due_date IS NULL, t.due_date', [$id]),
-        'timeline' => all('SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.company_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT 100', [$id]),
+        'timeline' => all('SELECT a.*, COALESCE(u.name, CONCAT(pu.name, " (client)")) who FROM activities a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN portal_users pu ON pu.id = a.portal_user_id WHERE a.company_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT 100', [$id]),
+        'portalUsers' => all('SELECT * FROM portal_users WHERE company_id = ? ORDER BY active DESC, name', [$id]),
     ]);
 }
 

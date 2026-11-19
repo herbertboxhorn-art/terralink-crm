@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.13.0';
-const SCHEMA_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
+const SCHEMA_VERSION = '1.14.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -113,10 +113,10 @@ function next_number(string $name): string {
 }
 
 // ---------- sessions / security ----------
-function start_session(): void {
+function start_session(string $name = 'tlcrm'): void {
     if (session_status() === PHP_SESSION_ACTIVE) return;
     $https = (($_SERVER['HTTPS'] ?? '') === 'on') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-    session_name('tlcrm');
+    session_name($name);
     session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax']);
     ini_set('session.gc_maxlifetime', '43200'); // 12 h — a full field day
     session_start();
@@ -239,3 +239,4 @@ require __DIR__ . '/forms.php';
 require __DIR__ . '/services.php';
 require __DIR__ . '/files.php';
 require __DIR__ . '/automation.php';
+require __DIR__ . '/portal.php';

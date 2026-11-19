@@ -25,6 +25,7 @@ function h_file_upload(): void {
         if ($u['error'] === UPLOAD_ERR_NO_FILE) continue;
         [$fid, $err] = store_upload($u, $type, $id);
         $fid ? $ok++ : $errs[] = $err;
+        if ($fid && $type === 'ticket' && post('public')) q('UPDATE files SET is_public = 1 WHERE id = ?', [$fid]);
     }
     if ($ok && $type !== 'equipment') log_activity('system', $type, $id, "Added $ok file" . ($ok === 1 ? '' : 's'), $rec['company_id'] ? (int)$rec['company_id'] : null);
     if ($errs) flash(($ok ? "$ok uploaded. " : '') . 'Not uploaded: ' . implode('; ', $errs), 'bad');
@@ -36,9 +37,14 @@ function h_file_upload(): void {
 function h_file_get(int $id, bool $thumb = false): void {
     $f = one('SELECT * FROM files WHERE id = ?', [$id]);
     if (!$f) not_found();
+    file_send($f, $thumb);
+}
+
+/** Streams a stored file (or its thumbnail) to the browser */
+function file_send(array $f, bool $thumb = false): never {
     $path = file_path($f, $thumb && $f['is_image']);
     if (!is_file($path)) $path = file_path($f);
-    if (!is_file($path)) not_found();
+    if (!is_file($path)) { http_response_code(404); exit('File missing'); }
     $inline = $f['is_image'] || $f['mime'] === 'application/pdf';
     $mime = ($thumb && $f['is_image']) ? 'image/jpeg' : ($inline ? $f['mime'] : 'application/octet-stream');
     $fn = str_replace(['"', "\r", "\n"], '', $f['name']);
@@ -53,6 +59,17 @@ function h_file_get(int $id, bool $thumb = false): void {
 }
 
 function h_file_thumb(int $id): void { h_file_get($id, true); }
+
+/** Ticket files only: show or hide a staff file in the client portal */
+function h_file_share(int $id): void {
+    $f = one("SELECT * FROM files WHERE id = ? AND entity_type = 'ticket'", [$id]);
+    if (!$f) not_found();
+    if ($f['portal_user_id']) { flash('Files the client uploaded are always visible to them.', 'warn'); redirect(back('/') . '#files'); }
+    $pub = $f['is_public'] ? 0 : 1;
+    q('UPDATE files SET is_public = ? WHERE id = ?', [$pub, $id]);
+    flash($pub ? $f['name'] . ' is now visible in the client portal.' : $f['name'] . ' is hidden from the client portal.');
+    redirect(back('/') . '#files');
+}
 
 function h_file_delete(int $id): void {
     $f = one('SELECT * FROM files WHERE id = ?', [$id]);

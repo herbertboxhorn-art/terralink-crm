@@ -26,6 +26,7 @@
   <a href="#sites">Sites &amp; gear <span><?= count($sites) ?></span></a>
   <a href="#tickets">Tickets <span><?= count($tickets) ?></span></a>
   <a href="#quotes">Quotes <span><?= count($quotes) ?></span></a>
+  <a href="#portal">Client portal <span><?= count(array_filter($portalUsers, fn($p) => $p['active'])) ?></span></a>
 </nav>
 
 <section data-tabpanel="overview">
@@ -115,5 +116,39 @@
         <div class="grow"><a href="/quotes/<?= (int)$qt['id'] ?>"><?= h($qt['number']) ?> — <?= h($qt['title']) ?></a><span class="meta"><?= h(fdate($qt['issued_on'])) ?></span></div>
         <b><?= h(money($qt['subtotal'])) ?></b></li>
     <?php endforeach; ?></ul><?php endif; ?>
+  </div>
+</section>
+
+<section data-tabpanel="portal">
+  <div class="grid side">
+    <div class="card">
+      <div class="cardhead"><h2>Portal logins</h2><a href="<?= h(portal_url()) ?>" target="_blank" rel="noopener"><?= h(preg_replace('#^https?://#', '', portal_url())) ?> ↗</a></div>
+      <?php if (!$portalUsers): ?><div class="empty">No one at <?= h($c['name']) ?> can sign in to the client portal yet. Add a login on the right.</div><?php else: ?>
+      <ul class="list"><?php foreach ($portalUsers as $p): ?>
+        <li><?= avatar($p['name'], $p['id']) ?>
+          <div class="grow"><a href="/portal-users/<?= (int)$p['id'] ?>/edit"><?= h($p['name']) ?></a><?= $p['is_admin'] ? ' <span class="pill new">Portal admin</span>' : '' ?><?= !$p['active'] ? ' <span class="pill">Disabled</span>' : '' ?>
+            <span class="meta"><?= h($p['email']) ?> · <?= h(portal_perm_summary($p)) ?></span>
+            <span class="meta"><?= $p['last_login_at'] ? 'Last signed in ' . h(ago($p['last_login_at'])) : ($p['invited_at'] ? 'Invited ' . h(ago($p['invited_at'])) . ', not signed in yet' : 'Not invited yet') ?></span></div>
+          <?php if (is_role('admin', 'sales')): ?><a class="btn sm" href="/portal-users/<?= (int)$p['id'] ?>/edit">Edit</a><?php endif; ?></li>
+      <?php endforeach; ?></ul><?php endif; ?>
+    </div>
+    <?php if (is_role('admin', 'sales')): ?>
+    <div class="card">
+      <h2>Add a portal login</h2>
+      <form method="post" action="/companies/<?= $id ?>/portal-users" class="form" style="grid-template-columns:1fr" autocomplete="off"><?= csrf_field() ?>
+        <div class="field"><label>From a contact</label><select name="contact_id"><option value="">— Type a name and email below —</option>
+          <?php foreach ($contacts as $ct): if (!$ct['email']) continue; ?><option value="<?= (int)$ct['id'] ?>"><?= h(contact_name($ct)) ?> · <?= h($ct['email']) ?></option><?php endforeach; ?></select></div>
+        <div class="field"><label>Name</label><input name="name" placeholder="Leave blank when picking a contact"></div>
+        <div class="field"><label>Email (their login)</label><input type="email" name="email" placeholder="Leave blank when picking a contact"></div>
+        <div class="field"><label>Access</label><select name="preset" data-preset>
+          <?php foreach (PORTAL_PRESETS as $k => $p): ?><option value="<?= $k ?>" data-perms="<?= h(implode(',', $p['perms'])) ?>"><?= h($p['label']) ?></option><?php endforeach; ?>
+          <option value="">Custom (tick below)</option></select></div>
+        <details><summary class="muted" style="cursor:pointer">Custom permissions</summary><?php $pp = ['perm_tickets' => 1]; $grantable = null; require __DIR__ . '/_portal_perms.php'; ?></details>
+        <div class="field check"><label><input type="checkbox" name="invite" value="1" checked> Email them an invite now</label></div>
+        <button class="btn primary" type="submit">Add login</button>
+      </form>
+      <p class="muted" style="font-size:13px;margin:12px 0 0">Tickets only: their own tickets. Operations: all tickets, sites, plans, no prices. Full access: also quotes, invoices, and they can add colleagues themselves.</p>
+    </div>
+    <?php endif; ?>
   </div>
 </section>

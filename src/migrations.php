@@ -295,6 +295,52 @@ function migrations(): array {
                 q('INSERT IGNORE INTO settings (k, v) VALUES (?, ?)', [$k, $v]);
             }
         },
+        // 1.14.0 — client portal: company logins with per-area permissions, client-visible ticket messages and files
+        '1.14.0' => function (): void {
+            if (!table_exists('portal_users')) db()->exec("CREATE TABLE portal_users (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                company_id INT UNSIGNED NOT NULL,
+                contact_id INT UNSIGNED NULL,
+                name VARCHAR(120) NOT NULL,
+                email VARCHAR(190) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                perm_tickets TINYINT(1) NOT NULL DEFAULT 1,
+                perm_tickets_all TINYINT(1) NOT NULL DEFAULT 0,
+                perm_sites TINYINT(1) NOT NULL DEFAULT 0,
+                perm_plans TINYINT(1) NOT NULL DEFAULT 0,
+                perm_quotes TINYINT(1) NOT NULL DEFAULT 0,
+                perm_invoices TINYINT(1) NOT NULL DEFAULT 0,
+                is_admin TINYINT(1) NOT NULL DEFAULT 0,
+                active TINYINT(1) NOT NULL DEFAULT 1,
+                last_login_at DATETIME NULL,
+                invited_at DATETIME NULL,
+                created_by_user INT UNSIGNED NULL,
+                created_by_portal INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_portal_email (email),
+                INDEX idx_portal_company (company_id),
+                CONSTRAINT fk_pu_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+                CONSTRAINT fk_pu_contact FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!table_exists('portal_resets')) db()->exec("CREATE TABLE portal_resets (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                portal_user_id INT UNSIGNED NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                kind ENUM('reset','invite') NOT NULL DEFAULT 'reset',
+                expires_at DATETIME NOT NULL,
+                used_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_pr_user FOREIGN KEY (portal_user_id) REFERENCES portal_users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!col_exists('activities', 'is_public')) db()->exec('ALTER TABLE activities ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 AFTER body');
+            if (!col_exists('activities', 'portal_user_id')) db()->exec('ALTER TABLE activities ADD COLUMN portal_user_id INT UNSIGNED NULL AFTER user_id');
+            if (!col_exists('files', 'is_public')) db()->exec('ALTER TABLE files ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 AFTER height');
+            if (!col_exists('files', 'portal_user_id')) db()->exec('ALTER TABLE files ADD COLUMN portal_user_id INT UNSIGNED NULL AFTER uploaded_by');
+            if (!col_exists('tickets', 'portal_user_id')) db()->exec('ALTER TABLE tickets ADD COLUMN portal_user_id INT UNSIGNED NULL AFTER created_by, ADD INDEX idx_ticket_portal (portal_user_id)');
+            if (!col_exists('quotes', 'client_decision_at')) db()->exec('ALTER TABLE quotes ADD COLUMN client_decision_at DATETIME NULL AFTER notes');
+            if (!col_exists('quotes', 'client_decision_by')) db()->exec('ALTER TABLE quotes ADD COLUMN client_decision_by VARCHAR(190) NULL AFTER client_decision_at');
+        },
     ];
 }
 

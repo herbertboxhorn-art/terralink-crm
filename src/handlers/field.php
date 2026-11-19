@@ -298,8 +298,8 @@ function h_ticket_form(int $id = 0): void {
 
 function h_ticket_show(int $id): void {
     $t = one('SELECT t.*, c.name company, s.name site, u.name assignee, ct.first_name, ct.last_name, ct.phone ct_phone, ct.mobile ct_mobile,
-                     e.category e_cat, e.make e_make, e.model e_model, e.serial e_serial, sp.title plan_title
-              FROM tickets t LEFT JOIN service_plans sp ON sp.id = t.plan_id JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id
+                     e.category e_cat, e.make e_make, e.model e_model, e.serial e_serial, sp.title plan_title, pu.name portal_opener
+              FROM tickets t LEFT JOIN portal_users pu ON pu.id = t.portal_user_id LEFT JOIN service_plans sp ON sp.id = t.plan_id JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id
               LEFT JOIN users u ON u.id = t.assigned_to LEFT JOIN contacts ct ON ct.id = t.contact_id
               LEFT JOIN equipment e ON e.id = t.equipment_id WHERE t.id = ?', [$id]);
     if (!$t) not_found();
@@ -307,7 +307,7 @@ function h_ticket_show(int $id): void {
         'title'    => $t['number'] . ' — ' . $t['subject'],
         't'        => $t,
         'tasks'    => all('SELECT t.*, u.name assignee FROM tasks t LEFT JOIN users u ON u.id = t.assigned_to WHERE t.ticket_id = ? ORDER BY t.done_at IS NOT NULL, t.due_date', [$id]),
-        'timeline' => all("SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity_type = 'ticket' AND a.entity_id = ? ORDER BY a.created_at DESC, a.id DESC", [$id]),
+        'timeline' => all("SELECT a.*, COALESCE(u.name, CONCAT(pu.name, ' (client)')) who FROM activities a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN portal_users pu ON pu.id = a.portal_user_id WHERE a.entity_type = 'ticket' AND a.entity_id = ? ORDER BY a.created_at DESC, a.id DESC", [$id]),
         'charges'  => $charges = ticket_charge_rows($id),
         'ctot'     => ticket_charge_totals($charges),
         'catGroups' => charge_catalog_groups(),
@@ -328,13 +328,25 @@ function h_ticket_update(int $id): void {
     q('UPDATE tickets SET status = ?, minutes_spent = minutes_spent + ?, closed_at = ? WHERE id = ?', [
         $status, $mins, $status === 'closed' ? ($t['closed_at'] ?? date('Y-m-d H:i:s')) : null, $id]);
     $parts = [];
+    $client = post('client') && $note !== '';
+    if ($client) {
+        // The client sees exactly what was written; status/time go on a separate internal line
+        q('INSERT INTO activities (entity_type, entity_id, company_id, user_id, type, body, is_public) VALUES (?,?,?,?,?,?,1)',
+          ['ticket', $id, (int)$t['company_id'], uid(), $kind, $note]);
+        $note = '';
+    }
     if ($status !== $t['status']) $parts[] = 'Status: ' . TICKET_STATUS[$t['status']] . ' → ' . TICKET_STATUS[$status];
     if ($mins) $parts[] = '+' . $mins . ' min';
     if ($note !== '') $parts[] = $note;
-    if ($parts) {
-        log_activity($status !== $t['status'] && $note === '' ? 'stage' : $kind, 'ticket', $id, implode(' · ', $parts), (int)$t['company_id']);
+    if ($parts || $client) {
+        if ($parts) log_activity($status !== $t['status'] && $note === '' ? 'stage' : $kind, 'ticket', $id, implode(' · ', $parts), (int)$t['company_id']);
         ticket_responded($id);
-        flash('Ticket updated.');
+        $msg = 'Ticket updated.';
+        if ($client) {
+            $n = portal_notify_client($t, (string)post('note', ''), $status !== $t['status'] ? $status : null);
+            $msg = $n ? "Reply sent to the client ($n email" . ($n === 1 ? '' : 's') . ').' : 'Reply posted in the client portal. Nobody was emailed: no portal login opened this ticket or is its contact.';
+        }
+        flash($msg);
     } else {
         flash('Nothing to save: change the status, add time, or write a note.', 'warn');
     }

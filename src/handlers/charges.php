@@ -206,7 +206,8 @@ function ticket_charges_release(int $id): void {
 }
 
 // ---------- work summary PDF ----------
-function ticket_summary_data(int $id): array {
+/** $publicOnly: only notes marked visible to the client (portal copy) */
+function ticket_summary_data(int $id, bool $publicOnly = false): array {
     $t = one('SELECT t.*, c.name company, c.address c_address, c.town c_town, c.province c_province, c.email c_email, c.phone c_phone,
                      s.name site, s.address s_address, s.town s_town, u.name assignee, ct.first_name, ct.last_name, sp.title plan_title
               FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id LEFT JOIN users u ON u.id = t.assigned_to
@@ -214,7 +215,7 @@ function ticket_summary_data(int $id): array {
     if (!$t) not_found();
     $rows = ticket_charge_rows($id);
     $log = all("SELECT a.created_at, a.type, a.body, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id
-                WHERE a.entity_type = 'ticket' AND a.entity_id = ? AND a.type IN ('note','call','email','visit') ORDER BY a.created_at, a.id", [$id]);
+                WHERE a.entity_type = 'ticket' AND a.entity_id = ? AND a.type IN ('note','call','email','visit') AND a.portal_user_id IS NULL" . ($publicOnly ? ' AND a.is_public = 1' : '') . " ORDER BY a.created_at, a.id", [$id]);
     // Keep only what the tech wrote: drop the "Status: … → …" and "+90 min" parts of quick updates
     foreach ($log as $k => &$l) {
         $parts = array_filter(explode(' · ', (string)$l['body']), fn($x) => !preg_match('/^(Status: .*|\+\d+ min)$/u', trim($x)));
@@ -225,8 +226,9 @@ function ticket_summary_data(int $id): array {
     return [$t, $rows, ticket_charge_totals($rows), array_values($log)];
 }
 
-function ticket_summary_pdf(int $id): array {
-    [$t, $rows, $tot, $log] = ticket_summary_data($id);
+function ticket_summary_pdf(int $id, bool $publicOnly = false, bool $hidePrices = false): array {
+    [$t, $rows, $tot, $log] = ticket_summary_data($id, $publicOnly);
+    if ($hidePrices) $rows = [];
     ob_start();
     view('ticket_pdf', ['t' => $t, 'rows' => $rows, 'tot' => $tot, 'log' => $log], false);
     $html = ob_get_clean();

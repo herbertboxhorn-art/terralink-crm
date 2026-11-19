@@ -1,5 +1,16 @@
 # TerraLink CRM changelog
 
+## 1.14.0 — 2026-11-19
+- **Client portal** at portal.terralinksystems.com: the same app and database on its own hostname, with its own logins and session. Staff pages are never served there.
+- **Logins per company.** Each company can have several portal logins. Each login has ticks for: Tickets (own, or "see all company tickets"), Sites & equipment, Service plans, Quotes, Invoices & payments, Manage users. Plan fees and ticket charges only show with Invoices.
+- **Staff:** a new **Client portal** tab on each company. Add a login from a contact or by name/email with a preset (Tickets only / Operations (no money) / Full access + manage users) or custom ticks. You can also email an invite (link valid 7 days), edit, disable or remove a login.
+- **Client admins** (Manage users) add colleagues and set their access themselves, but can only give out access they have.
+- **Tickets in the portal:** clients open tickets (site, urgency, photos), see their status, reply and add photos. Staff get an email; the client gets a confirmation. A client reply to "Waiting on client" puts the ticket back to Open. Closed tickets offer a follow-up ticket and a work summary PDF (no prices without Invoices; only client-visible notes).
+- **Internal vs client-visible:** the ticket Update box has "Reply to client". Ticked, the note shows in the portal and is emailed to the client who opened the ticket (or the login linked to its contact). Otherwise notes stay internal. Ticket files: "share with client" toggle, client uploads are marked "From client".
+- **Quotes:** clients see sent quotes with items, totals and PDF, and can accept (with an authorization tick and optional note/PO) or decline. Same effects as staff: deal Won/Lost, stock reserved/released. The quote shows who decided and when; the quote owner gets an email.
+- **Invoices:** issued invoices (not drafts or void), balance owing, overdue flag, PDFs, and how to pay.
+- **Sites & equipment** (serials, install dates, warranty status, "Report a problem" per device) and **service plans** (next visit, what's checked).
+
 ## 1.13.0 — 2026-11-19
 - **Invoices** (new menu item, admin/sales). On the 1st of each month the daily job makes a **draft invoice per client** and emails Herb that they're ready to review. Nothing goes to clients until a draft is approved.
   - What goes on a draft: every closed, billable ticket not yet billed (grouped by ticket, with site and completion date), plus **service plan fees for the coming month** (billed in advance, fee ÷ months between visits).

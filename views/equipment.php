@@ -57,7 +57,7 @@
       <tr>
         <td><a class="row" href="/consumables/<?= (int)$c['id'] ?>"><?= h($c['name']) ?></a><?= $c['sku'] ? '<br><span class="muted mono">' . h($c['sku']) . '</span>' : '' ?></td>
         <td><?= h($c['category']) ?></td>
-        <td class="num" data-l="On hand"><b<?= $low ? ' style="color:var(--bad)"' : '' ?>><?= h(qty_fmt($c['qty_on_hand'])) ?></b> <?= h($c['unit']) ?><?= $low ? ' <span class="pill urgent">low</span>' : '' ?></td>
+        <td class="num" data-l="On hand"><b<?= $low ? ' style="color:var(--bad)"' : '' ?>><?= h(qty_fmt($c['qty_on_hand'])) ?></b> <?= h($c['unit']) ?><?= $low ? ' <span class="pill urgent">low</span>' : '' ?><?= (float)$c['reserved'] ? '<br><small class="muted">' . h(qty_fmt($c['reserved'])) . ' reserved · ' . h(qty_fmt($c['qty_on_hand'] - $c['reserved'])) . ' free</small>' : '' ?></td>
         <td class="num" data-l="Re-order at"><?= $c['reorder_level'] !== null ? h(qty_fmt($c['reorder_level'])) : '—' ?></td>
         <td data-l="Location"><?= h($c['location']) ?></td>
         <td class="num" data-l="Value"><?= $c['unit_cost'] !== null ? h(money($c['qty_on_hand'] * $c['unit_cost'])) : '—' ?></td>
@@ -80,7 +80,7 @@
         <td data-l="Location"><?= h($e['stock_location'] ?: '—') ?></td>
         <td data-l="Purchased"><?= h(fdate($e['purchased_at'], 'M j, Y')) ?><?= $e['supplier'] ? '<br><span class="muted">' . h($e['supplier']) . '</span>' : '' ?></td>
         <td class="num" data-l="Cost"><?= $e['cost'] !== null ? h(money($e['cost'])) : '—' ?></td>
-        <td><span class="pill <?= h($e['status']) ?>"><?= h(EQUIP_STATUS[$e['status']]) ?></span></td>
+        <td class="pillcell"><span class="pill <?= h($e['status']) ?>"><?= h(EQUIP_STATUS[$e['status']]) ?></span><?php if ($e['reserved_for']): ?> <a class="pill high" href="/quotes/<?= (int)$e['reserved_quote_id'] ?>#stock" title="Reserved for this quote">Reserved · <?= h($e['reserved_for']) ?></a><?php endif; ?></td>
         <td class="num"><?php if ($e['status'] === 'in_stock'): ?><a class="btn sm dark" href="/equipment/<?= (int)$e['id'] ?>/install">Install →</a> <?php endif; ?><a href="/equipment/<?= (int)$e['id'] ?>/edit">Edit</a></td>
       </tr>
     <?php endforeach; ?></tbody>

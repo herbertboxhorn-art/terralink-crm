@@ -113,6 +113,12 @@ $routes = [
     ['POST', '/plans/(\d+)/run', 'h_plan_run'],
     ['POST', '/plans/(\d+)/delete', 'h_plan_delete'],
     ['GET|POST', '/quotes/(\d+)/email', 'h_quote_email'],
+    ['POST', '/quotes/(\d+)/reserve', 'h_quote_reserve'],
+    ['POST', '/quotes/(\d+)/release', 'h_quote_release'],
+    ['GET', '/catalog', 'h_catalog'],
+    ['GET|POST', '/catalog/new', 'h_catalog_form'],
+    ['GET|POST', '/catalog/(\d+)/edit', 'h_catalog_form'],
+    ['POST', '/catalog/(\d+)/delete', 'h_catalog_delete'],
 
     ['POST', '/files', 'h_file_upload'],
     ['GET', '/files/(\d+)', 'h_file_get'],

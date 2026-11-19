@@ -30,6 +30,7 @@ function h_consumable_show(int $id): void {
     if (!$c) not_found();
     view('consumable', [
         'title' => $c['name'], 'c' => $c,
+        'res' => all('SELECT r.qty, q.id, q.number, q.title, q.status FROM consumable_reservations r JOIN quotes q ON q.id = r.quote_id WHERE r.consumable_id = ? ORDER BY q.id', [$id]),
         'moves' => all('SELECT m.*, u.name who, s.name site, s.id sid, co.name company, t.number ticket
                         FROM consumable_moves m LEFT JOIN users u ON u.id = m.user_id LEFT JOIN sites s ON s.id = m.site_id
                         LEFT JOIN companies co ON co.id = s.company_id LEFT JOIN tickets t ON t.id = m.ticket_id

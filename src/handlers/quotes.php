@@ -36,6 +36,7 @@ function read_items(): array {
             'unit'        => str_or_null($in['unit'][$i] ?? null),
             'unit_price'  => is_numeric($in['unit_price'][$i] ?? null) ? (float)$in['unit_price'][$i] : 0,
             'pst_applies' => !empty($in['pst'][$i]) && $in['pst'][$i] !== '0' ? 1 : 0,
+            'catalog_id'  => int_or_null($in['catalog_id'][$i] ?? null),
         ];
     }
     return $items;
@@ -69,8 +70,8 @@ function h_quote_form(int $id = 0): void {
             $qid = save_entity($def, $vals, $id ?: null);
             q('DELETE FROM quote_items WHERE quote_id = ?', [$qid]);
             foreach ($items as $pos => $it) {
-                q('INSERT INTO quote_items (quote_id, position, kind, description, qty, unit, unit_price, pst_applies) VALUES (?,?,?,?,?,?,?,?)',
-                  [$qid, $pos, $it['kind'], $it['description'], $it['qty'], $it['unit'], $it['unit_price'], $it['pst_applies']]);
+                q('INSERT INTO quote_items (quote_id, catalog_id, position, kind, description, qty, unit, unit_price, pst_applies) VALUES (?,?,?,?,?,?,?,?,?)',
+                  [$qid, $it['catalog_id'] && val('SELECT id FROM catalog_items WHERE id = ?', [$it['catalog_id']]) ? $it['catalog_id'] : null, $pos, $it['kind'], $it['description'], $it['qty'], $it['unit'], $it['unit_price'], $it['pst_applies']]);
             }
             $pdo->commit();
             if (!$id) {
@@ -105,7 +106,7 @@ function load_quote(int $id): array {
 function h_quote_show(int $id): void {
     [$qt, $items, $tot] = load_quote($id);
     $timeline = all("SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity_type = 'quote' AND a.entity_id = ? ORDER BY a.created_at DESC", [$id]);
-    view('quote', ['title' => $qt['number'] . ' — ' . $qt['title'], 'qt' => $qt, 'items' => $items, 'tot' => $tot, 'timeline' => $timeline]);
+    view('quote', ['title' => $qt['number'] . ' — ' . $qt['title'], 'qt' => $qt, 'items' => $items, 'tot' => $tot, 'timeline' => $timeline, 'stock' => quote_stock($id)]);
 }
 
 /** Renders a quote to PDF. Returns [bytes, filename] */
@@ -182,6 +183,9 @@ function h_quote_status(int $id): void {
     if (!isset(QUOTE_STATUS[$st]) || $st === $qt['status']) redirect("/quotes/$id");
     q('UPDATE quotes SET status = ? WHERE id = ?', [$st, $id]);
     log_activity('stage', 'quote', $id, "Quote {$qt['number']}: " . QUOTE_STATUS[$qt['status']] . ' → ' . QUOTE_STATUS[$st], (int)$qt['company_id']);
+    $stockMsg = '';
+    if (in_array($st, ['declined', 'expired'], true) && quote_release($id, 'quote ' . strtolower(QUOTE_STATUS[$st]))) $stockMsg = ' Its reserved stock was released.';
+    if ($st === 'accepted' && quote_stock($id)) $stockMsg = ' ' . quote_reserve($id);
     // Accepted/declined quote moves its deal to won/lost
     if ($qt['deal_id'] && in_array($st, ['accepted', 'declined'], true)) {
         $new = $st === 'accepted' ? 'won' : 'lost';
@@ -193,7 +197,7 @@ function h_quote_status(int $id): void {
             log_activity('stage', 'deal', (int)$qt['deal_id'], STAGES[$deal['stage']] . ' → ' . STAGES[$new] . " (via quote {$qt['number']})", (int)$qt['company_id']);
         }
     }
-    flash('Quote marked ' . strtolower(QUOTE_STATUS[$st]) . '.');
+    flash('Quote marked ' . strtolower(QUOTE_STATUS[$st]) . '.' . $stockMsg);
     redirect("/quotes/$id");
 }
 
@@ -206,8 +210,8 @@ function h_quote_duplicate(int $id): void {
        date('Y-m-d'), date('Y-m-d', strtotime("+$validDays days")), $qt['gst_rate'], $qt['pst_rate'], $qt['notes'], uid()]);
     $nid = (int)db()->lastInsertId();
     foreach ($items as $it) {
-        q('INSERT INTO quote_items (quote_id, position, kind, description, qty, unit, unit_price, pst_applies) VALUES (?,?,?,?,?,?,?,?)',
-          [$nid, $it['position'], $it['kind'], $it['description'], $it['qty'], $it['unit'], $it['unit_price'], $it['pst_applies']]);
+        q('INSERT INTO quote_items (quote_id, catalog_id, position, kind, description, qty, unit, unit_price, pst_applies) VALUES (?,?,?,?,?,?,?,?,?)',
+          [$nid, $it['catalog_id'], $it['position'], $it['kind'], $it['description'], $it['qty'], $it['unit'], $it['unit_price'], $it['pst_applies']]);
     }
     log_activity('system', 'quote', $nid, "Quote $num created as a copy of {$qt['number']}", (int)$qt['company_id']);
     flash("Copied to $num.");

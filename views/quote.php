@@ -41,6 +41,26 @@
         <div class="grand"><span>Total CAD</span><span><?= h(money($tot['total'])) ?></span></div>
       </div>
     </div>
+    <?php if ($stock): $open = in_array($qt['status'], ['draft', 'sent', 'accepted'], true); $anyHeld = array_sum(array_column($stock, 'held')) > 0; ?>
+    <div class="card" id="stock">
+      <div class="cardhead"><h2>Stock for this quote</h2>
+        <div class="actions">
+          <?php if ($open && array_filter($stock, fn($s) => $s['held'] < $s['need'] && $s['free'] > 0)): ?><form method="post" action="/quotes/<?= $id ?>/reserve"><?= csrf_field() ?><button class="btn sm dark" type="submit">Reserve stock</button></form><?php endif; ?>
+          <?php if ($anyHeld): ?><form method="post" action="/quotes/<?= $id ?>/release" data-confirm="Release the reserved stock so other jobs can use it?"><?= csrf_field() ?><button class="btn sm" type="submit">Release</button></form><?php endif; ?>
+        </div></div>
+      <?php foreach ($stock as $s): $short = $s['need'] - $s['held'] - $s['free']; ?>
+        <div class="stockrow">
+          <div class="grow"><b><?= h($s['label']) ?></b> <span class="muted">· need <?= h(qty_fmt($s['need'])) ?> <?= h($s['unit']) ?></span></div>
+          <?php if ($s['held'] >= $s['need']): ?><span class="sla sla-ok" style="background:var(--ok-t);color:var(--ok)">Reserved <?= h(qty_fmt($s['held'])) ?></span>
+          <?php else: ?>
+            <?php if ($s['held'] > 0): ?><span class="sla sla-ok">Reserved <?= h(qty_fmt($s['held'])) ?></span><?php endif; ?>
+            <span class="sla <?= $short > 0 ? 'sla-over' : 'sla-ok' ?>"><?= h(qty_fmt($s['free'])) ?> free<?= $short > 0 ? ' · short ' . h(qty_fmt($short)) : '' ?></span>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+      <p class="muted" style="font-size:13px;margin:10px 0 0">Reserved stock is held for this job, and other quotes see it as taken. It's reserved automatically when the quote is accepted and released when it's declined or expires. Installing a reserved item at a site uses up its reservation.</p>
+    </div>
+    <?php endif; ?>
     <?php $etype = 'quote'; $eid = $id; require __DIR__ . '/_timeline.php'; ?>
   </div>
   <div class="stack">

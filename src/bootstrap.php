@@ -23,8 +23,11 @@ function env(string $k, ?string $default = null): ?string {
 // Shared hosting: settings live in crm-config.php OUTSIDE the web root (never in git).
 // It returns ['DB_HOST' => ..., 'DB_PASS' => ..., ...]; values become env vars.
 (function () {
-    $root = realpath(APP_ROOT) ?: APP_ROOT;
-    foreach ([dirname($root) . '/crm-config.php', dirname($root, 3) . '/crm-config.php'] as $f) {
+    // Look in each parent folder of the app (up to 5 levels), e.g. domains/<site>/crm-config.php
+    $d = realpath(APP_ROOT) ?: APP_ROOT;
+    for ($i = 0; $i < 5 && $d !== dirname($d); $i++) {
+        $d = dirname($d);
+        $f = $d . '/crm-config.php';
         if (!is_file($f)) continue;
         $cfg = require $f;
         if (is_array($cfg)) foreach ($cfg as $k => $v) if (getenv((string)$k) === false) putenv("$k=$v");

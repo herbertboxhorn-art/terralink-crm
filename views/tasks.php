@@ -22,6 +22,7 @@
             <?= $f !== 'mine' ? ' · ' . h($t['assignee'] ?? 'Unassigned') : '' ?>
           </span>
         </div>
+        <?= $f !== 'mine' ? avatar($t['assignee'], $t['assigned_to']) : '' ?>
         <form method="post" action="/tasks/<?= (int)$t['id'] ?>/delete" data-confirm="Delete this task?"><?= csrf_field() ?><button class="linkbtn" type="submit" aria-label="Delete">✕</button></form>
       </li>
     <?php endforeach; ?></ul><?php endif; ?>

@@ -11,11 +11,12 @@
         <b><?= h($t['title']) ?></b>
         <span class="meta"><?= $t['due_date'] ? '<span' . ($overdue ? ' style="color:var(--bad);font-weight:600"' : '') . '>Due ' . h(fdate($t['due_date'], 'M j')) . '</span> · ' : '' ?><?= h($t['assignee'] ?? 'Unassigned') ?></span>
       </div>
+      <?= avatar($t['assignee'] ?? null, $t['assigned_to'] ?? 0) ?>
     </li>
     <?php endforeach; ?>
   </ul>
   <?php endif; ?>
-  <form method="post" action="/tasks" class="inline">
+  <form method="post" action="/tasks" class="inline task-add">
     <?= csrf_field() ?>
     <?php foreach ($link as $k => $v): ?><input type="hidden" name="<?= h($k) ?>" value="<?= (int)$v ?>"><?php endforeach; ?>
     <input type="hidden" name="back" value="<?= h($back) ?>">

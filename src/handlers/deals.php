@@ -8,7 +8,7 @@ function h_pipeline(): void {
     if ($service !== '' && in_array($service, SERVICES, true)) { $w[] = 'd.service = ?'; $p[] = $service; }
     // Won/lost columns only show the last 90 days so the board stays readable
     $w[] = "(d.stage NOT IN ('won','lost') OR d.stage_changed_at > NOW() - INTERVAL 90 DAY)";
-    $rows = all('SELECT d.*, c.name company, u.name owner FROM deals d
+    $rows = all('SELECT d.*, c.name company, u.name owner, u.id owner_uid FROM deals d
                  LEFT JOIN companies c ON c.id = d.company_id LEFT JOIN users u ON u.id = d.owner_id
                  WHERE ' . implode(' AND ', $w) . ' ORDER BY d.stage_changed_at DESC', $p);
     $cols = array_fill_keys(array_keys(STAGES), []);
@@ -105,6 +105,7 @@ function h_activity_add(): void {
     if (!isset(ACTIVITY_TYPES[$kind])) $kind = 'note';
     if ($body !== '') {
         log_activity($kind, $type, $eid, $body, entity_company($type, $eid));
+        if ($type === 'ticket') ticket_responded($eid);
         flash('Logged.');
     }
     redirect(entity_url($type, $eid) . '#timeline');
@@ -128,7 +129,7 @@ function h_tasks(): void {
         default   => 't.done_at IS NULL AND t.assigned_to = ' . (int)uid(),
     };
     $order = $f === 'done' ? 't.done_at DESC' : 't.due_date IS NULL, t.due_date, t.id';
-    $rows = all("SELECT t.*, u.name assignee, c.name company, d.title deal, tk.number ticket
+    $rows = all("SELECT t.*, u.name assignee, u.id assignee_uid, c.name company, d.title deal, tk.number ticket
                  FROM tasks t LEFT JOIN users u ON u.id = t.assigned_to LEFT JOIN companies c ON c.id = t.company_id
                  LEFT JOIN deals d ON d.id = t.deal_id LEFT JOIN tickets tk ON tk.id = t.ticket_id
                  WHERE $w ORDER BY $order LIMIT 300");

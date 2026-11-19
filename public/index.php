@@ -26,6 +26,10 @@ foreach (glob(APP_ROOT . '/src/handlers/*.php') as $f) if (!str_ends_with($f, 'a
 $routes = [
     ['GET|POST', '/login', 'h_login', true],
     ['GET|POST', '/setup', 'h_setup', true],
+    ['GET|POST', '/forgot', 'h_forgot', true],
+    ['GET|POST', '/reset', 'h_reset', true],
+    ['POST', '/users/(\d+)/invite', 'h_user_invite'],
+    ['GET', '/today', 'h_today'],
     ['POST', '/logout', 'h_logout', true],
 
     ['GET', '/', 'h_dashboard'],

@@ -68,5 +68,32 @@ function migrations(): array {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             q("INSERT IGNORE INTO settings (k, v) VALUES ('stock_locations', 'Shop')");
         },
+        // 1.6.0 — ticket response targets, password reset/invite tokens, outgoing mail log
+        '1.6.0' => function (): void {
+            if (!col_exists('tickets', 'first_response_at')) db()->exec('ALTER TABLE tickets ADD COLUMN first_response_at DATETIME NULL AFTER closed_at');
+            // existing tickets that already moved on count as responded
+            db()->exec("UPDATE tickets SET first_response_at = updated_at WHERE first_response_at IS NULL AND (status <> 'open' OR minutes_spent > 0)");
+            if (!table_exists('password_resets')) db()->exec("CREATE TABLE password_resets (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id INT UNSIGNED NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                kind ENUM('reset','invite') NOT NULL DEFAULT 'reset',
+                expires_at DATETIME NOT NULL,
+                used_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!table_exists('mail_log')) db()->exec("CREATE TABLE mail_log (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                to_addr VARCHAR(255) NOT NULL,
+                subject VARCHAR(255) NOT NULL,
+                status ENUM('sent','failed') NOT NULL,
+                error VARCHAR(500) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_mail_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            q("INSERT IGNORE INTO settings (k, v) VALUES ('sla_urgent','4'),('sla_high','8'),('sla_normal','24'),('sla_low','72'),
+               ('mail_webhook_url','https://terralinksystems.app.n8n.cloud/webhook/terralink-crm-mail')");
+        },
     ];
 }

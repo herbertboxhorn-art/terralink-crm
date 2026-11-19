@@ -247,11 +247,12 @@ function h_tickets(): void {
     $f = (string)get('f', 'open');
     $w = match ($f) {
         'mine'   => "t.status <> 'closed' AND t.assigned_to = " . (int)uid(),
+        'overdue'=> sla_overdue_sql('t'),
         'closed' => "t.status = 'closed'",
         'all'    => '1=1',
         default  => "t.status <> 'closed'",
     };
-    $rows = all("SELECT t.*, c.name company, s.name site, u.name assignee FROM tickets t
+    $rows = all("SELECT t.*, c.name company, s.name site, u.name assignee, u.id assignee_uid FROM tickets t
                  JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id LEFT JOIN users u ON u.id = t.assigned_to
                  WHERE $w ORDER BY t.status = 'closed', FIELD(t.priority,'urgent','high','normal','low'), t.created_at DESC LIMIT 300");
     view('tickets', ['title' => 'Tickets', 'rows' => $rows, 'f' => $f]);
@@ -282,7 +283,7 @@ function h_ticket_form(int $id = 0): void {
             }
             $newId = save_entity($def + ['table' => 'tickets'], $vals, $id ?: null);
             if (!$id) log_activity('system', 'ticket', $newId, "Ticket {$vals['number']} opened: {$vals['subject']}", $vals['company_id']);
-            elseif (($row['status'] ?? '') !== $vals['status']) log_activity('stage', 'ticket', $newId, 'Status: ' . TICKET_STATUS[$row['status']] . ' → ' . TICKET_STATUS[$vals['status']], $vals['company_id']);
+            elseif (($row['status'] ?? '') !== $vals['status']) { log_activity('stage', 'ticket', $newId, 'Status: ' . TICKET_STATUS[$row['status']] . ' → ' . TICKET_STATUS[$vals['status']], $vals['company_id']); ticket_responded($newId); }
             flash($id ? 'Ticket saved.' : 'Ticket opened.');
             redirect("/tickets/$newId");
         }
@@ -315,14 +316,21 @@ function h_ticket_update(int $id): void {
     if (!isset(TICKET_STATUS[$status])) $status = $t['status'];
     $mins = max(0, min(24 * 60, (int)post('minutes', 0)));
     $note = (string)post('note', '');
+    $kind = (string)post('type', 'note');
+    if (!isset(ACTIVITY_TYPES[$kind])) $kind = 'note';
     q('UPDATE tickets SET status = ?, minutes_spent = minutes_spent + ?, closed_at = ? WHERE id = ?', [
         $status, $mins, $status === 'closed' ? ($t['closed_at'] ?? date('Y-m-d H:i:s')) : null, $id]);
     $parts = [];
     if ($status !== $t['status']) $parts[] = 'Status: ' . TICKET_STATUS[$t['status']] . ' → ' . TICKET_STATUS[$status];
     if ($mins) $parts[] = '+' . $mins . ' min';
     if ($note !== '') $parts[] = $note;
-    if ($parts) log_activity($status !== $t['status'] ? 'stage' : 'note', 'ticket', $id, implode(' · ', $parts), (int)$t['company_id']);
-    flash('Ticket updated.');
+    if ($parts) {
+        log_activity($status !== $t['status'] && $note === '' ? 'stage' : $kind, 'ticket', $id, implode(' · ', $parts), (int)$t['company_id']);
+        ticket_responded($id);
+        flash('Ticket updated.');
+    } else {
+        flash('Nothing to save: change the status, add time, or write a note.', 'warn');
+    }
     redirect("/tickets/$id");
 }
 

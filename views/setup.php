@@ -1,14 +1,6 @@
 <?php $e = fn($k) => isset($errors[$k]) ? '<div class="err">' . h($errors[$k]) . '</div>' : ''; ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>Setup · TerraLink CRM</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/fonts.css?v=<?= APP_VERSION ?>"><link rel="stylesheet" href="/assets/app.css?v=<?= APP_VERSION ?>">
-</head>
-<body><div class="login"><div class="card">
-  <h1><img src="/assets/favicon.svg" alt="" width="34" height="34"> First-run setup</h1>
+<?php ob_start(); ?>
+  <h1>First-run setup</h1>
   <?php if ($invalid): ?>
     <p class="muted">This setup link is invalid or has expired. Ask your administrator for a new setup link.</p>
   <?php else: ?>
@@ -22,4 +14,4 @@
       <button class="btn primary" type="submit">Create admin account</button>
     </form>
   <?php endif; ?>
-</div></div></body></html>
+<?php $title = 'Setup'; $inner = ob_get_clean(); require __DIR__ . '/_authshell.php'; ?>

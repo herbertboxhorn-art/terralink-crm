@@ -1,6 +1,6 @@
 <div class="pagehead">
   <div><h1>Service plans</h1><div class="sub">Recurring visits. Tickets open automatically before each one is due.</div></div>
-  <div class="actions"><a class="btn primary" href="/plans/new"><svg class="i"><use href="/assets/icons.svg#plus"/></svg>New plan</a></div>
+  <div class="actions"><a class="btn" href="/plans/templates">Templates</a><a class="btn primary" href="/plans/new"><svg class="i"><use href="/assets/icons.svg#plus"/></svg>New plan</a></div>
 </div>
 <div class="stats">
   <div class="stat"><small>Active plans</small><b><?= $activeCount ?></b><span>creating tickets</span></div>

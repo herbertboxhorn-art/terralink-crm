@@ -108,6 +108,10 @@ $routes = [
     ['GET', '/options/company/(\d+)', 'h_company_options'],
 
     ['GET', '/plans', 'h_plans'],
+    ['GET', '/plans/templates', 'h_plan_templates'],
+    ['GET|POST', '/plans/templates/new', 'h_plan_template_form'],
+    ['GET|POST', '/plans/templates/(\d+)/edit', 'h_plan_template_form'],
+    ['POST', '/plans/templates/(\d+)/delete', 'h_plan_template_delete'],
     ['GET|POST', '/plans/new', 'h_plan_form'],
     ['GET|POST', '/plans/(\d+)/edit', 'h_plan_form'],
     ['POST', '/plans/(\d+)/run', 'h_plan_run'],

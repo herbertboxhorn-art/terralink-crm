@@ -14,7 +14,15 @@ function api_dispatch(string $method, string $path): void {
         try { val('SELECT 1'); json_out(['ok' => true, 'version' => APP_VERSION]); }
         catch (Throwable) { json_out(['ok' => false], 503); }
     }
-    if ($method === 'POST' && $path === '/api/leads') { api_auth(); api_create_lead(); }
+    if ($method === 'POST' && $path === '/api/leads') {
+        api_auth();
+        // Caller is authenticated (our own n8n), so it may see the real reason for a failure.
+        try { api_create_lead(); }
+        catch (Throwable $e) {
+            error_log('lead api: ' . $e);
+            json_out(['error' => 'server error', 'detail' => get_class($e) . ': ' . $e->getMessage()], 500);
+        }
+    }
     json_out(['error' => 'not found'], 404);
 }
 
@@ -95,9 +103,8 @@ function api_create_lead(): void {
           ['Call back ' . ($name ?: $companyName) . ($phone ? " — $phone" : ''), $owner, $companyId, $dealId]);
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
-        error_log('lead api: ' . $e->getMessage());
-        json_out(['error' => 'server error'], 500);
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
     }
     $base = rtrim(env('APP_URL', ''), '/');
     json_out(['ok' => true, 'deal_id' => $dealId, 'company_id' => $companyId, 'contact_id' => $contactId,

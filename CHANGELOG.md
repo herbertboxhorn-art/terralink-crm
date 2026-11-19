@@ -1,5 +1,8 @@
 # TerraLink CRM changelog
 
+## 1.4.1 — 2026-11-19
+- Leads API: authenticated callers get the real error reason; rollback can no longer crash on a failed insert
+
 ## 1.4.0 — 2026-11-19
 - Moved production to Hostinger web hosting (shared): `crm-config.php` outside the web root, root `.htaccess` → `public/`, automatic schema migration, setup token from config
 - `hosting` branch carries vendor/ (no composer on shared hosting)

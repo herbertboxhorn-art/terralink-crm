@@ -202,6 +202,36 @@ function migrations(): array {
                 q('INSERT INTO plan_templates (name, title, description, every_months, lead_days, priority, fee, fee_note) VALUES (?,?,?,?,?,?,?,?)', $t);
             }
         },
+        // 1.12.0 — charges on tickets (labour, travel, parts from stock), billing status
+        '1.12.0' => function (): void {
+            if (!table_exists('ticket_charges')) db()->exec("CREATE TABLE ticket_charges (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                ticket_id INT UNSIGNED NOT NULL,
+                catalog_id INT UNSIGNED NULL,
+                kind ENUM('labour','hardware','software','travel','other') NOT NULL DEFAULT 'labour',
+                description VARCHAR(255) NOT NULL,
+                qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+                unit VARCHAR(20) NULL,
+                unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                pst_applies TINYINT(1) NOT NULL DEFAULT 0,
+                minutes INT UNSIGNED NULL,
+                consumable_id INT UNSIGNED NULL,
+                equipment_ids VARCHAR(255) NULL,
+                invoice_id INT UNSIGNED NULL,
+                created_by INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_tc_ticket (ticket_id),
+                INDEX idx_tc_invoice (invoice_id),
+                CONSTRAINT fk_tc_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+                CONSTRAINT fk_tc_catalog FOREIGN KEY (catalog_id) REFERENCES catalog_items(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!col_exists('tickets', 'billing')) db()->exec("ALTER TABLE tickets ADD COLUMN billing ENUM('billable','no_charge') NOT NULL DEFAULT 'billable' AFTER minutes_spent");
+            if (!col_exists('tickets', 'minutes_billed')) db()->exec('ALTER TABLE tickets ADD COLUMN minutes_billed INT UNSIGNED NOT NULL DEFAULT 0 AFTER billing');
+            if (!col_exists('tickets', 'billed_at')) db()->exec('ALTER TABLE tickets ADD COLUMN billed_at DATETIME NULL AFTER minutes_billed');
+            if (!col_exists('tickets', 'invoice_id')) db()->exec('ALTER TABLE tickets ADD COLUMN invoice_id INT UNSIGNED NULL AFTER billed_at, ADD INDEX idx_ticket_billing (billing, billed_at)');
+            // Visits opened by a service plan are covered by the plan fee
+            db()->exec("UPDATE tickets SET billing = 'no_charge' WHERE plan_id IS NOT NULL");
+        },
     ];
 }
 

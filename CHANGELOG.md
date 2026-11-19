@@ -1,5 +1,13 @@
 # TerraLink CRM changelog
 
+## 1.12.0 — 2026-11-19
+- **Charges on tickets:** a Charges card on every ticket. Add from the price list (mileage in km, labour in hours, installs, monthly items), override the price, or add a custom line. GST 5% / PST 7% totals are shown on the ticket and in its Details.
+- **Bill logged time:** one button turns the time logged with "+ time…" into a labour line at the rate you pick (rounded up to the quarter hour). Billed time is tracked, so it's never billed twice.
+- **Parts from stock:** price-list items linked to stock come off inventory when used on a ticket (consumables are deducted; equipment units are installed at the ticket's site, serials noted). Removing the charge puts the stock back.
+- **Billable / no charge** switch per ticket. Tickets opened by a service plan start as no charge (covered by the plan).
+- **Work summary PDF** per ticket: work done, time, charges and totals, with a client sign-off line.
+- **Billing** page (admin/sales): "Ready to bill" lists closed, billable tickets with charges or unbilled time, with totals; tick and mark them billed. Billed tickets are locked (an admin can reopen) and can't be deleted.
+
 ## 1.11.0 — 2026-11-19
 - **Plan templates** (Service plans → Templates): standard plans with a title, frequency, ticket lead time, priority, fee per visit, fee note and tech checklist. On a new plan, "Start from a template" fills everything in; you pick the company, site and first visit date. Editing a template doesn't change plans already made from it.
 - Comes with TerraLink's eight standard plans: Network Care check, Managed IT site visit, Managed IT remote review, IT planning meeting, Backup restore test, Starlink seasonal check, Automation health review, Private AI Server maintenance.

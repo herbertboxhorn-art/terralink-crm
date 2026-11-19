@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.11.0';
-const SCHEMA_VERSION = '1.11.0';
+const APP_VERSION = '1.12.0';
+const SCHEMA_VERSION = '1.12.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');

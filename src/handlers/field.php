@@ -308,6 +308,10 @@ function h_ticket_show(int $id): void {
         't'        => $t,
         'tasks'    => all('SELECT t.*, u.name assignee FROM tasks t LEFT JOIN users u ON u.id = t.assigned_to WHERE t.ticket_id = ? ORDER BY t.done_at IS NOT NULL, t.due_date', [$id]),
         'timeline' => all("SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity_type = 'ticket' AND a.entity_id = ? ORDER BY a.created_at DESC, a.id DESC", [$id]),
+        'charges'  => $charges = ticket_charge_rows($id),
+        'ctot'     => ticket_charge_totals($charges),
+        'catGroups' => charge_catalog_groups(),
+        'labourItems' => charge_labour_items(),
     ]);
 }
 
@@ -339,6 +343,9 @@ function h_ticket_update(int $id): void {
 
 function h_ticket_delete(int $id): void {
     require_role('admin');
+    $tk = one('SELECT billed_at, invoice_id FROM tickets WHERE id = ?', [$id]);
+    if ($tk && ($tk['billed_at'] || $tk['invoice_id'])) { flash('This ticket has been billed, so it can\'t be deleted.', 'bad'); redirect("/tickets/$id"); }
+    ticket_charges_release($id);
     q("DELETE FROM activities WHERE entity_type = 'ticket' AND entity_id = ?", [$id]);
     q('DELETE FROM tickets WHERE id = ?', [$id]);
     flash('Ticket deleted.');

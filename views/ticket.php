@@ -26,6 +26,7 @@
         <button class="btn primary" type="submit">Save update</button>
       </form>
     </div>
+    <?php require __DIR__ . '/_charges.php'; ?>
     <?php if ($t['description']): ?><div class="card"><h2>Description</h2><p style="white-space:pre-wrap;margin:0"><?= h($t['description']) ?></p></div><?php endif; ?>
     <?php $ftype = 'ticket'; $fid = $id; require __DIR__ . '/_files.php'; ?>
     <?php $etype = 'ticket'; $eid = $id; $noForm = true; require __DIR__ . '/_timeline.php'; ?>
@@ -37,7 +38,8 @@
         <?php if ($t['equipment_id']): ?><dt>Device</dt><dd><?= h(trim($t['e_cat'] . ' ' . $t['e_make'] . ' ' . $t['e_model'])) ?><?= $t['e_serial'] ? '<br><span class="mono">S/N ' . h($t['e_serial']) . '</span>' : '' ?></dd><?php endif; ?>
         <?php if (!empty($t['plan_id'])): ?><dt>Service plan</dt><dd><a href="/plans/<?= (int)$t['plan_id'] ?>/edit"><?= h($t['plan_title'] ?? 'View plan') ?></a></dd><?php endif; ?>
         <dt>Assigned</dt><dd><?= avatar($t['assignee'], $t['assigned_to']) ?> <?= h($t['assignee'] ?? 'Unassigned') ?></dd>
-        <dt>Time spent</dt><dd><?= $m ? '<b>' . h(dur($m)) . '</b>' : '—' ?></dd>
+        <dt>Time spent</dt><dd><?= $m ? '<b>' . h(dur($m)) . '</b>' . ((int)$t['minutes_billed'] ? ' <small class="muted">(' . h(dur((int)$t['minutes_billed'])) . ' billed)</small>' : '') : '—' ?></dd>
+        <dt>Charges</dt><dd><?= $charges ? '<a href="#charges"><b>' . h(money($ctot['total'])) . '</b></a> incl. tax' : '—' ?><?= $t['billing'] === 'no_charge' ? ' <span class="pill">No charge</span>' : '' ?></dd>
         <dt>Response target</dt><dd><?= sla_badge($t) ?: ($t['first_response_at'] ? 'Responded ' . h(ago($t['first_response_at'])) : '—') ?> <small class="muted">(<?= sla_hours($t['priority']) ?> h for <?= h(strtolower(TICKET_PRIORITY[$t['priority']])) ?>)</small></dd>
         <dt>Opened</dt><dd><?= h(fdate($t['created_at'], 'M j, Y g:i a')) ?></dd>
         <?php if ($t['closed_at']): ?><dt>Closed</dt><dd><?= h(fdate($t['closed_at'], 'M j, Y g:i a')) ?></dd><?php endif; ?>

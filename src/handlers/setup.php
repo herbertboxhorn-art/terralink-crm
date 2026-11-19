@@ -2,9 +2,14 @@
 // One-time first-admin setup. Only works while the users table is empty AND the token matches.
 
 function setup_token_ok(string $token): bool {
-    $hash = setting('setup_token_hash');
-    $exp = (int)setting('setup_token_expires', '0');
-    return $hash !== '' && $token !== '' && time() < $exp && hash_equals($hash, hash('sha256', $token));
+    if ($token === '') return false;
+    $given = hash('sha256', $token);
+    // 1) token printed by bin/setup-token.php (Docker)  2) token placed in crm-config.php (shared hosting)
+    foreach ([[setting('setup_token_hash'), (int)setting('setup_token_expires', '0')],
+              [(string)env('SETUP_TOKEN_HASH', ''), (int)env('SETUP_TOKEN_EXPIRES', '0')]] as [$hash, $exp]) {
+        if ($hash !== '' && time() < $exp && hash_equals($hash, $given)) return true;
+    }
+    return false;
 }
 
 function h_setup(): void {

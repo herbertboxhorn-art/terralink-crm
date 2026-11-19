@@ -27,7 +27,7 @@ function h_login(): void {
             $error = 'Email or password is wrong.';
         }
     }
-    if (!$error && (int)val('SELECT COUNT(*) FROM users') === 0) $error = 'No accounts yet. Use the one-time setup link from the server log.';
+    if (!$error && (int)val('SELECT COUNT(*) FROM users') === 0) $error = 'No accounts yet. Use the one-time setup link to create the first admin.';
     view('login', ['title' => 'Sign in', 'error' => $error], false);
 }
 

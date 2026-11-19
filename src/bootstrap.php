@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
+const SCHEMA_VERSION = '1.3.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -18,6 +19,18 @@ function env(string $k, ?string $default = null): ?string {
     }
     return ($v === false || $v === '') ? $default : $v;
 }
+
+// Shared hosting: settings live in crm-config.php OUTSIDE the web root (never in git).
+// It returns ['DB_HOST' => ..., 'DB_PASS' => ..., ...]; values become env vars.
+(function () {
+    $root = realpath(APP_ROOT) ?: APP_ROOT;
+    foreach ([dirname($root) . '/crm-config.php', dirname($root, 3) . '/crm-config.php'] as $f) {
+        if (!is_file($f)) continue;
+        $cfg = require $f;
+        if (is_array($cfg)) foreach ($cfg as $k => $v) if (getenv((string)$k) === false) putenv("$k=$v");
+        break;
+    }
+})();
 
 // Optional local .env (dev only; in Docker the vars come from compose)
 (function () {
@@ -52,6 +65,14 @@ function q(string $sql, array $p = []): PDOStatement { $s = db()->prepare($sql);
 function all(string $sql, array $p = []): array { return q($sql, $p)->fetchAll(); }
 function one(string $sql, array $p = []): ?array { $r = q($sql, $p)->fetch(); return $r ?: null; }
 function val(string $sql, array $p = []): mixed { $r = q($sql, $p)->fetchColumn(); return $r === false ? null : $r; }
+
+/** Applies sql/*.sql when the current schema version is missing (shared hosting has no CLI step). */
+function ensure_schema(): void {
+    try {
+        if (val('SELECT 1 FROM schema_version WHERE version = ?', [SCHEMA_VERSION])) return;
+    } catch (PDOException) { /* table missing → fresh database */ }
+    foreach (glob(APP_ROOT . '/sql/*.sql') as $f) db()->exec(file_get_contents($f));
+}
 
 function setting(string $k, string $default = ''): string {
     static $cache = null;

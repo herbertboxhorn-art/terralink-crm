@@ -6,6 +6,8 @@ require __DIR__ . '/../src/bootstrap.php';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path = rtrim(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/') ?: '/';
 
+ensure_schema();
+
 // Public API (header-key auth, no session)
 if (str_starts_with($path, '/api/')) {
     require APP_ROOT . '/src/handlers/api.php';

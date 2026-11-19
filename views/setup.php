@@ -10,7 +10,7 @@
 <body><div class="login"><div class="card">
   <h1><img src="/assets/favicon.svg" alt="" width="34" height="34"> First-run setup</h1>
   <?php if ($invalid): ?>
-    <p class="muted">This setup link is invalid or has expired. Restart the CRM app container to print a fresh link in its log.</p>
+    <p class="muted">This setup link is invalid or has expired. Ask your administrator for a new setup link.</p>
   <?php else: ?>
     <p class="muted" style="margin:0">Create the first admin account. This link stops working once you save.</p>
     <form method="post" action="/setup">

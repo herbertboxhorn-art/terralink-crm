@@ -1,0 +1,13 @@
+# Shared hosting: the repo is deployed into public_html, but only public/ may be reachable.
+# Every request is mapped into public/, so src/, vendor/, sql/, .git etc. can never be served.
+Options -Indexes
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<FilesMatch "^(\.|composer\.|crm-config)">
+  Require all denied
+</FilesMatch>

@@ -5,7 +5,8 @@
     <h1><?= h($qt['title']) ?></h1>
     <div class="sub"><span class="mono"><?= h($qt['number']) ?></span><span class="pill <?= h($qt['status']) ?>"><?= h(QUOTE_STATUS[$qt['status']]) ?></span>
       <a href="/companies/<?= (int)$qt['company_id'] ?>"><?= h($qt['company']) ?></a>
-      <?php if ($qt['deal_id']): ?><a href="/deals/<?= (int)$qt['deal_id'] ?>">Deal: <?= h($qt['deal']) ?></a><?php endif; ?></div>
+      <?php if ($qt['deal_id']): ?><a href="/deals/<?= (int)$qt['deal_id'] ?>">Deal: <?= h($qt['deal']) ?></a><?php endif; ?>
+      <?php if (!empty($qt['client_decision_by'])): ?><span><?= h(QUOTE_STATUS[$qt['status']] ?? '') ?> by <b><?= h($qt['client_decision_by']) ?></b> in the client portal, <?= h(fdate($qt['client_decision_at'], 'M j, Y g:i a')) ?> <span class="pubtag">Client portal</span></span><?php endif; ?></div>
   </div>
   <div class="actions">
     <a class="btn primary" href="/quotes/<?= $id ?>/email"><svg class="i"><use href="/assets/icons.svg#send"/></svg>Email to client</a>

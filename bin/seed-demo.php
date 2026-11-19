@@ -7,7 +7,7 @@ if (!IS_DEV) { fwrite(STDERR, "Refusing: APP_ENV is not development.\n"); exit(1
 
 $pdo = db();
 $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-foreach (['consumable_reservations', 'catalog_items', 'service_plans', 'files', 'mail_log', 'password_resets', 'consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
+foreach (['portal_resets', 'portal_users', 'consumable_reservations', 'catalog_items', 'service_plans', 'files', 'mail_log', 'password_resets', 'consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
 $pdo->exec("UPDATE counters SET value = 0");
 $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 
@@ -120,4 +120,11 @@ foreach ([
   q('INSERT INTO catalog_items (sku, name, kind, unit, price, cost, pst_applies, stock_type, eq_category, eq_make, eq_model, consumable_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
     [$sku, $n, $k, $u, $p, $c, $pst, $st, $cat, $mk, $md, $cons ? val('SELECT id FROM consumables WHERE name = ?', [$cons]) : null]);
 }
-echo "Demo data loaded. Sign in as herb@terralinksystems.com / demo-password-123\n";
+// Client portal logins (demo): Ridgeback admin + crew lead (own tickets only), Morice owner (full)
+foreach ([[0, 'Dale Kowalski', 'dkowalski@ridgeback.example', $ctids[0], [1,1,1,1,1,1,1]],
+          [0, 'Tom Crewlead', 'tom@ridgeback.example', null, [1,0,0,0,0,0,0]],
+          [1, 'Sandra Reyes', 'sreyes@morice.example', $ctids[1], [1,1,1,1,1,1,1]]] as [$ci, $n, $e, $ct, $pm]) {
+  q('INSERT INTO portal_users (company_id, contact_id, name, email, password_hash, perm_tickets, perm_tickets_all, perm_sites, perm_plans, perm_quotes, perm_invoices, is_admin) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+    [$cids[$ci], $ct, $n, $e, $pw, ...$pm]);
+}
+echo "Demo data loaded. Sign in as herb@terralinksystems.com / demo-password-123 (portal: dkowalski@ridgeback.example, tom@ridgeback.example, sreyes@morice.example, same password)\n";

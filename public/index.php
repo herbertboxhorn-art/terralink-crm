@@ -8,6 +8,13 @@ $path = rtrim(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/
 
 ensure_schema();
 
+// Client portal: its own hostname, session and logins
+if (is_portal_request()) {
+    require APP_ROOT . '/src/portal/app.php';
+    portal_dispatch($method, $path);
+    exit;
+}
+
 // Public API (header-key auth, no session)
 if (str_starts_with($path, '/api/')) {
     require APP_ROOT . '/src/handlers/api.php';
@@ -147,6 +154,11 @@ $routes = [
     ['GET', '/files/(\d+)', 'h_file_get'],
     ['GET', '/files/(\d+)/thumb', 'h_file_thumb'],
     ['POST', '/files/(\d+)/delete', 'h_file_delete'],
+    ['POST', '/files/(\d+)/share', 'h_file_share'],
+    ['POST', '/companies/(\d+)/portal-users', 'h_portal_user_add'],
+    ['GET|POST', '/portal-users/(\d+)/edit', 'h_portal_user_edit'],
+    ['POST', '/portal-users/(\d+)/invite', 'h_portal_user_invite'],
+    ['POST', '/portal-users/(\d+)/delete', 'h_portal_user_delete'],
 
     ['GET', '/data', 'h_data'],
     ['GET', '/data/export/([a-z]+)', 'h_data_export'],

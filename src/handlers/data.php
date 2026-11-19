@@ -266,7 +266,7 @@ function h_data_backup(): void {
     foreach ($pdo->query('SHOW FULL TABLES WHERE Table_type = \'BASE TABLE\'')->fetchAll(PDO::FETCH_NUM) as [$t]) {
         $create = $pdo->query("SHOW CREATE TABLE `$t`")->fetch(PDO::FETCH_NUM)[1];
         $out("DROP TABLE IF EXISTS `$t`;\n$create;\n\n");
-        if ($t === 'password_resets') continue;              // one-time links: never worth restoring
+        if ($t === 'password_resets' || $t === 'portal_resets') continue;              // one-time links: never worth restoring
         $st = $pdo->query("SELECT * FROM `$t`");
         $buf = []; $cols = null;
         while ($r = $st->fetch(PDO::FETCH_ASSOC)) {

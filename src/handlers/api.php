@@ -56,10 +56,12 @@ function api_create_lead(): void {
     if ($phone === '' && $email === '') json_out(['error' => 'phone or email required'], 422);
 
     // Duplicate guard: same email/phone within 10 minutes → return the existing lead
+    $match = []; $p = [];
+    if ($email !== '') { $match[] = 'ct.email = ?'; $p[] = $email; }
+    if ($phone !== '') { $match[] = 'ct.phone = ?'; $p[] = $phone; }
     $dupe = val("SELECT d.id FROM deals d JOIN contacts ct ON ct.id = d.contact_id
                  WHERE d.source = 'website' AND d.created_at > NOW() - INTERVAL 10 MINUTE
-                   AND ((? <> '' AND ct.email = ?) OR (? <> '' AND ct.phone = ?)) ORDER BY d.id DESC LIMIT 1",
-                [$email, $email, $phone, $phone]);
+                   AND (" . implode(' OR ', $match) . ") ORDER BY d.id DESC LIMIT 1", $p);
     if ($dupe) json_out(['ok' => true, 'deal_id' => (int)$dupe, 'duplicate' => true]);
 
     $pdo = db();

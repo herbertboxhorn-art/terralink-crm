@@ -1,5 +1,8 @@
 # TerraLink CRM changelog
 
+## 1.4.2 — 2026-11-19
+- DB connection forces utf8mb4_unicode_ci (fixes "Illegal mix of collations" on Hostinger MySQL); leads duplicate check rewritten
+
 ## 1.4.1 — 2026-11-19
 - Leads API: authenticated callers get the real error reason; rollback can no longer crash on a failed insert
 

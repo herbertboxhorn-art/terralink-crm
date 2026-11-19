@@ -47,6 +47,7 @@ function h_site_delete(int $id): void {
     q("DELETE FROM activities WHERE entity_type = 'site' AND entity_id = ?", [$id]);
     q('DELETE FROM sites WHERE id = ?', [$id]);
     flash('Site deleted. Its equipment was moved back to stock.');
+    files_purge_orphans();
     redirect($cid ? "/companies/$cid#sites" : '/companies');
 }
 
@@ -125,6 +126,7 @@ function h_equipment_form(int $id = 0): void {
         'def' => $def, 'row' => $row, 'errors' => $errors,
         'cancel' => $site ? "/sites/$siteId" : '/equipment?tab=stock', 'deleteUrl' => $id ? "/equipment/$id/delete" : null,
         'subtitle' => $site ? $site['company'] . ' · ' . $site['name'] : 'In stock — not at any site yet',
+        'files' => $id ? ['equipment', $id] : null,
         'extraActions' => $id ? ($inStock
             ? [['Install at a site →', "/equipment/$id/install"]]
             : [['Return to stock', "/equipment/$id/return", true]]) : []]);
@@ -239,6 +241,7 @@ function h_equipment_delete(int $id): void {
     $sid = val('SELECT site_id FROM equipment WHERE id = ?', [$id]);
     q('DELETE FROM equipment WHERE id = ?', [$id]);
     flash('Equipment deleted.');
+    files_purge_orphans();
     redirect($sid ? "/sites/$sid#equipment" : '/equipment?tab=stock');
 }
 
@@ -339,5 +342,6 @@ function h_ticket_delete(int $id): void {
     q("DELETE FROM activities WHERE entity_type = 'ticket' AND entity_id = ?", [$id]);
     q('DELETE FROM tickets WHERE id = ?', [$id]);
     flash('Ticket deleted.');
+    files_purge_orphans();
     redirect('/tickets');
 }

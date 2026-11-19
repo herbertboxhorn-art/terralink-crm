@@ -51,6 +51,10 @@ The CRM sends email (password resets, invites, and later quotes and reminders) b
 - **Body:** `{"messages":[{"to","subject","html","reply_to","attachment_b64","attachment_name","attachment_mime"}]}`.
 - **Log:** each send is recorded in **Settings → Recent emails**. Set `MAIL_MODE=log` in a local `.env` to write emails to `/tmp/crm-mail.log` instead of sending them.
 
+## 3c. Photos, files and backups
+- **Where uploads are stored:** in `crm-uploads/`, next to `crm-config.php` (outside `public_html`). You can override this with `UPLOAD_DIR`. Locally they go to `storage/uploads`. `/api/health` shows `"storage": true` when that folder is writable.
+- **Backups:** go to **Import & export** (avatar menu) and download the database (.sql.gz) and the photos and files (.zip). To restore, open hPanel → phpMyAdmin → Import.
+
 ## 4. Roles
 
 | Role  | Can do |

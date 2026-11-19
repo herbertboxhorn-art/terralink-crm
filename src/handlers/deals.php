@@ -73,6 +73,7 @@ function h_deal_delete(int $id): void {
     q("DELETE FROM activities WHERE entity_type = 'deal' AND entity_id = ?", [$id]);
     q('DELETE FROM deals WHERE id = ?', [$id]);
     flash('Deal deleted.');
+    files_purge_orphans();
     redirect('/pipeline');
 }
 

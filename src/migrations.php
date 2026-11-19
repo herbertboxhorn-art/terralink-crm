@@ -95,5 +95,24 @@ function migrations(): array {
             q("INSERT IGNORE INTO settings (k, v) VALUES ('sla_urgent','4'),('sla_high','8'),('sla_normal','24'),('sla_low','72'),
                ('mail_webhook_url','https://terralinksystems.app.n8n.cloud/webhook/terralink-crm-mail')");
         },
+        // 1.7.0 — photos & files on records
+        '1.7.0' => function (): void {
+            if (!table_exists('files')) db()->exec("CREATE TABLE files (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                entity_type ENUM('company','site','ticket','deal','quote','equipment') NOT NULL,
+                entity_id INT UNSIGNED NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                path VARCHAR(80) NOT NULL,
+                mime VARCHAR(100) NOT NULL,
+                size INT UNSIGNED NOT NULL DEFAULT 0,
+                is_image TINYINT(1) NOT NULL DEFAULT 0,
+                width INT UNSIGNED NULL,
+                height INT UNSIGNED NULL,
+                uploaded_by INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_file_entity (entity_type, entity_id),
+                CONSTRAINT fk_file_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        },
     ];
 }

@@ -161,3 +161,16 @@
     calc();
   }
 })();
+
+// v1.7 uploads: pick files → upload right away
+document.querySelectorAll('form[data-upload]').forEach(f => {
+  const inp = f.querySelector('input[type=file]'), btn = f.querySelector('[data-upload-btn]'), msg = f.querySelector('[data-upload-msg]');
+  if (btn) btn.hidden = true;
+  inp.addEventListener('change', () => {
+    if (!inp.files.length) return;
+    const mb = [...inp.files].reduce((s, x) => s + x.size, 0) / 1048576;
+    msg.textContent = `Uploading ${inp.files.length} file${inp.files.length > 1 ? 's' : ''} (${mb.toFixed(1)} MB)…`;
+    f.querySelector('label.btn').classList.add('disabled');
+    f.submit();
+  });
+});

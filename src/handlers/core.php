@@ -114,6 +114,7 @@ function h_company_delete(int $id): void {
     q('DELETE FROM activities WHERE company_id = ?', [$id]);
     q('DELETE FROM companies WHERE id = ?', [$id]);
     flash('Company deleted.');
+    files_purge_orphans();
     redirect('/companies');
 }
 

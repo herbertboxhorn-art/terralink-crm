@@ -171,5 +171,6 @@ function h_quote_delete(int $id): void {
     q("DELETE FROM activities WHERE entity_type = 'quote' AND entity_id = ?", [$id]);
     q('DELETE FROM quotes WHERE id = ?', [$id]);
     flash('Quote deleted.');
+    files_purge_orphans();
     redirect('/quotes');
 }

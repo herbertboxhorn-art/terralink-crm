@@ -27,6 +27,7 @@
       </form>
     </div>
     <?php if ($t['description']): ?><div class="card"><h2>Description</h2><p style="white-space:pre-wrap;margin:0"><?= h($t['description']) ?></p></div><?php endif; ?>
+    <?php $ftype = 'ticket'; $fid = $id; require __DIR__ . '/_files.php'; ?>
     <?php $etype = 'ticket'; $eid = $id; $noForm = true; require __DIR__ . '/_timeline.php'; ?>
   </div>
   <div class="stack">

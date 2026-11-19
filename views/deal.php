@@ -39,5 +39,6 @@
       <li><span class="pill <?= h($qt['status']) ?>"><?= h(QUOTE_STATUS[$qt['status']]) ?></span><div class="grow"><a href="/quotes/<?= (int)$qt['id'] ?>"><?= h($qt['number']) ?></a><span class="meta"><?= h(fdate($qt['issued_on'])) ?></span></div></li>
     <?php endforeach; ?></ul></div><?php endif; ?>
     <?php $link = ['deal_id' => $id]; $back = "/deals/$id"; require __DIR__ . '/_tasks.php'; ?>
+    <?php $ftype = 'deal'; $fid = $id; require __DIR__ . '/_files.php'; ?>
   </div>
 </div>

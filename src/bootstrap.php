@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.6.0';
-const SCHEMA_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
+const SCHEMA_VERSION = '1.7.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -29,6 +29,7 @@ function env(string $k, ?string $default = null): ?string {
         $d = dirname($d);
         $f = $d . '/crm-config.php';
         if (!is_file($f)) continue;
+        if (!defined('CONFIG_DIR')) define('CONFIG_DIR', $d);
         $cfg = require $f;
         if (is_array($cfg)) foreach ($cfg as $k => $v) if (getenv((string)$k) === false) putenv("$k=$v");
         break;
@@ -125,6 +126,11 @@ function csrf_token(): string {
 }
 function csrf_field(): string { return '<input type="hidden" name="_csrf" value="' . h(csrf_token()) . '">'; }
 function csrf_check(): void {
+    // An upload bigger than post_max_size arrives with an empty $_POST: say so instead of "session expired"
+    if (!$_POST && !$_FILES && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        flash('That upload is too big for the server (limit ' . ini_get('post_max_size') . ' per upload). Try fewer files at once.', 'bad');
+        redirect(back('/'));
+    }
     $t = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
     if (!is_string($t) || !hash_equals(csrf_token(), $t)) { http_response_code(419); exit('Session expired — go back and reload the page.'); }
 }
@@ -229,3 +235,4 @@ function json_out(mixed $data, int $code = 200): never {
 require __DIR__ . '/constants.php';
 require __DIR__ . '/forms.php';
 require __DIR__ . '/services.php';
+require __DIR__ . '/files.php';

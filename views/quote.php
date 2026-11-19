@@ -52,6 +52,7 @@
       </dl>
       <?php if ($qt['notes']): ?><p style="white-space:pre-wrap;margin:12px 0 0"><?= h($qt['notes']) ?></p><?php endif; ?>
     </div>
+    <?php $ftype = 'quote'; $fid = $id; require __DIR__ . '/_files.php'; ?>
     <?php if (is_role('admin', 'sales')): ?>
     <form method="post" action="/quotes/<?= $id ?>/delete" data-confirm="Delete quote <?= h($qt['number']) ?>?"><?= csrf_field() ?><button class="btn danger sm" type="submit">Delete quote</button></form>
     <?php endif; ?>

@@ -1,5 +1,11 @@
 <?php $e = fn($k) => isset($errors[$k]) ? '<div class="err">' . h($errors[$k]) . '</div>' : ''; ?>
 <div class="pagehead"><div><h1>My account</h1><div class="sub"><?= h(user()['name']) ?> · <?= h(user()['email']) ?> · <?= h(ROLES[user()['role']]) ?></div></div></div>
+<?php $u2 = one('SELECT * FROM users WHERE id = ?', [uid()]); ?>
+<div class="card" style="max-width:520px;margin-bottom:16px">
+  <div class="cardhead"><h2>Two-step sign-in</h2><span class="pill <?= twofa_enabled($u2) ? 'active' : 'waiting' ?>"><?= twofa_enabled($u2) ? 'On' : 'Off' ?></span></div>
+  <p class="muted" style="margin:6px 0 12px">A code from your phone after your password<?= twofa_required($u2) ? ' (required for your account)' : '' ?>.</p>
+  <a class="btn<?= twofa_enabled($u2) ? '' : ' primary' ?>" href="/account/2fa"><?= twofa_enabled($u2) ? 'Manage' : 'Turn on' ?></a>
+</div>
 <div class="card" style="max-width:520px">
   <h2>Change password</h2>
   <form method="post" class="form" style="grid-template-columns:1fr;margin-top:12px"><?= csrf_field() ?>

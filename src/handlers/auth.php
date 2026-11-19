@@ -15,13 +15,11 @@ function h_login(): void {
         } else {
             $u = one('SELECT * FROM users WHERE email = ? AND active = 1', [$email]);
             if ($u && password_verify((string)post('password', ''), $u['password_hash'])) {
-                session_regenerate_id(true);
-                $_SESSION['uid'] = (int)$u['id'];
-                q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$u['id']]);
                 q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
                 $to = $_SESSION['after_login'] ?? '/';
-                unset($_SESSION['after_login']);
-                redirect(str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
+                // Second step unless this device was trusted within the last 30 days
+                if (twofa_enabled($u) && !twofa_device_trusted((int)$u['id'])) twofa_start_pending($u, $to);
+                login_finish($u, $to);
             }
             q('INSERT INTO login_attempts (ip, email) VALUES (?, ?)', [$ip, $email]);
             $error = 'Email or password is wrong.';
@@ -29,6 +27,23 @@ function h_login(): void {
     }
     if (!$error && (int)val('SELECT COUNT(*) FROM users') === 0) $error = 'No accounts yet. Use the one-time setup link to create the first admin.';
     view('login', ['title' => 'Sign in', 'error' => $error], false);
+}
+
+/** Signs a user in for real (after password, and 2FA when they have it) */
+function login_finish(array $u, string $to = '/'): never {
+    session_regenerate_id(true);
+    unset($_SESSION['pending_2fa'], $_SESSION['after_login']);
+    $_SESSION['uid'] = (int)$u['id'];
+    q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$u['id']]);
+    redirect(str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
+}
+
+/** Password was right: remember who is half signed in for 10 minutes and ask for the code */
+function twofa_start_pending(array $u, string $to): never {
+    session_regenerate_id(true);
+    unset($_SESSION['uid']);
+    $_SESSION['pending_2fa'] = ['uid' => (int)$u['id'], 'at' => time(), 'to' => $to];
+    redirect('/login/2fa');
 }
 
 function h_logout(): void {
@@ -55,6 +70,7 @@ function h_user_form(int $id = 0): void {
             'phone'  => str_or_null(post('phone')),
             'role'   => (string)post('role', 'tech'),
             'active' => post('active') ? 1 : 0,
+            'totp_required' => post('totp_required') ? 1 : 0,
         ];
         $pw = (string)($_POST['password'] ?? '');
         if ($vals['name'] === '') $errors['name'] = 'Required';
@@ -113,7 +129,7 @@ function h_settings(): void {
     require_role('admin');
     $keys = ['company_name', 'company_phone', 'company_email', 'company_address', 'gst_number',
              'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations', 'mail_webhook_url', 'sla_urgent', 'sla_high', 'sla_normal', 'sla_low',
-             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee'];
+             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee', 'twofa_policy'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (post('test_email')) {
             $ok = mail_send([['to' => user()['email'], 'subject' => 'CRM test email', 'html' => '<p>It works! The CRM can send email through n8n.</p>']]);
@@ -121,6 +137,7 @@ function h_settings(): void {
             redirect('/settings#email');
         }
         foreach (['sla_urgent', 'sla_high', 'sla_normal', 'sla_low'] as $k) if (isset($_POST[$k])) $_POST[$k] = (string)max(1, (int)$_POST[$k]);
+        if (isset($_POST['twofa_policy']) && !isset(TWOFA_POLICIES[$_POST['twofa_policy']])) $_POST['twofa_policy'] = 'optional';
         if (isset($_POST['invoice_reminders'])) $_POST['invoice_reminders'] = $_POST['invoice_reminders'] === '1' ? '1' : '0';
         if (isset($_POST['portal_assignee'])) $_POST['portal_assignee'] = (string)(int_or_null($_POST['portal_assignee']) ?? '');
         if (isset($_POST['invoice_terms_days'])) $_POST['invoice_terms_days'] = (string)max(0, min(120, (int)$_POST['invoice_terms_days']));
@@ -197,11 +214,11 @@ function h_reset(): void {
         if (!$errors) {
             q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $row['user_id']]);
             q('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$row['user_id']]);
-            session_regenerate_id(true);
-            $_SESSION['uid'] = (int)$row['user_id'];
-            q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$row['user_id']]);
-            flash($row['kind'] === 'invite' ? 'Welcome aboard! Your password is set.' : 'Password changed. You\'re signed in.');
-            redirect('/');
+            $u = one('SELECT * FROM users WHERE id = ?', [$row['user_id']]);
+            flash($row['kind'] === 'invite' ? 'Welcome aboard! Your password is set.' : 'Password changed.' . (twofa_enabled($u) ? ' Now enter your sign-in code.' : ' You\'re signed in.'));
+            // A reset link proves the email, not the phone: 2FA still applies
+            if (twofa_enabled($u)) { twofa_forget_devices((int)$u['id']); twofa_start_pending($u, '/'); }
+            login_finish($u, '/');
         }
     }
     view('reset', ['title' => 'Set password', 'row' => $row, 'token' => $token, 'errors' => $errors], false);

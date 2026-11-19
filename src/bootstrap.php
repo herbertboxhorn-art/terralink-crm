@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.15.0';
-const SCHEMA_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
+const SCHEMA_VERSION = '1.16.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -164,7 +164,14 @@ function user(): ?array {
     return $u;
 }
 function uid(): ?int { return user()['id'] ?? null; }
-function require_login(): void { if (!user()) { $_SESSION['after_login'] = $_SERVER['REQUEST_URI'] ?? '/'; redirect('/login'); } }
+function require_login(): void {
+    if (!user()) { $_SESSION['after_login'] = $_SERVER['REQUEST_URI'] ?? '/'; redirect('/login'); }
+    // 2FA required but not set up yet: only the setup page (and sign out) until it's done
+    if (twofa_must_setup(user())) {
+        $p = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        if ($p !== '/account/2fa') { flash('Set up two-step sign-in to continue. It takes about a minute.', 'warn'); redirect('/account/2fa'); }
+    }
+}
 function is_role(string ...$roles): bool { return in_array(user()['role'] ?? '', $roles, true); }
 function require_role(string ...$roles): void { if (!is_role(...$roles)) forbidden(); }
 
@@ -242,3 +249,4 @@ require __DIR__ . '/services.php';
 require __DIR__ . '/files.php';
 require __DIR__ . '/automation.php';
 require __DIR__ . '/portal.php';
+require __DIR__ . '/twofa.php';

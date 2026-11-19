@@ -308,3 +308,21 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 :root[data-theme=dark] .quick a{background:var(--surface-2);border:1px solid var(--line)}
 :root[data-theme=dark] a{color:#7db5f2}
 :root[data-theme=dark] .tabs a.on{color:var(--ink)}
+
+/* v1.7 photos & files */
+[hidden]{display:none!important}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:12px}
+.thumbs figure{margin:0;position:relative}
+.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:var(--surface-2);border:1px solid var(--line)}
+.thumbs figcaption{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumbs .x{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(15,23,32,.72);color:#fff;font-size:17px;line-height:26px;cursor:pointer;padding:0}
+.list.files .ext{flex:none;width:42px;height:42px;border-radius:8px;background:var(--chip);color:var(--chip-ink);font:700 11px/42px Inter,sans-serif;text-align:center}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.upload{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:12px;border-top:1px solid var(--line)}
+.upload label.btn{cursor:pointer}
+.upload .upmsg{font-size:13px}
+.datagrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.datagrid .btn{justify-content:space-between}
+.imp td.act{white-space:nowrap;font-weight:600;font-size:13px}
+.imp tr.new td.act{color:var(--ok)} .imp tr.add td.act{color:var(--info)} .imp tr.skip td.act,.imp tr.err td.act{color:var(--bad)}

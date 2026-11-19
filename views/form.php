@@ -38,3 +38,6 @@
   </form>
   <?php endif; ?>
 </div>
+<?php if (!empty($files)): [$ftype, $fid] = $files; ?>
+<div style="max-width:860px;margin-top:16px"><?php require __DIR__ . '/_files.php'; ?></div>
+<?php endif; ?>

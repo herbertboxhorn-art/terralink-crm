@@ -1,5 +1,11 @@
 # TerraLink CRM changelog
 
+## 1.7.0 — 2026-11-19
+- **Photos & files** on companies, sites, deals, quotes, tickets and equipment: snap a photo on the phone or attach PDFs and Office files (25 MB each). Photos are turned upright, shrunk to 2560 px and get thumbnails. Files live outside the website folder and only open for signed-in users. The uploader or an admin can delete them, and they're removed when their record is deleted.
+- **Import & export** (avatar menu, admins): CSV export of companies, contacts, deals, sites, equipment, consumables, tickets and quotes (Excel-safe); import companies and contacts from a template, Outlook or Google export, with a preview showing what will be created, added or skipped
+- **Backup:** one-click database download (.sql.gz, restores with phpMyAdmin) and a zip of all photos and files; "last downloaded" date shown
+- Clear message when an upload is bigger than the server allows; health check reports whether file storage is writable
+
 ## 1.6.0 — 2026-11-19
 - **Look:** real TerraLink logo and app icons, login page in the website's style, light KPI cards (swipe strip on phones), owner avatars, **dark mode** (avatar menu → Theme)
 - **My day:** one page per person with their open tickets (site access notes, phone, map) and tasks due; techs land here after login

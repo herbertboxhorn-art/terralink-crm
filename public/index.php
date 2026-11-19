@@ -106,6 +106,19 @@ $routes = [
     ['GET|POST', '/settings', 'h_settings'],
 
     ['GET', '/options/company/(\d+)', 'h_company_options'],
+
+    ['POST', '/files', 'h_file_upload'],
+    ['GET', '/files/(\d+)', 'h_file_get'],
+    ['GET', '/files/(\d+)/thumb', 'h_file_thumb'],
+    ['POST', '/files/(\d+)/delete', 'h_file_delete'],
+
+    ['GET', '/data', 'h_data'],
+    ['GET', '/data/export/([a-z]+)', 'h_data_export'],
+    ['GET', '/data/template', 'h_data_template'],
+    ['POST', '/data/import', 'h_data_import'],
+    ['POST', '/data/import/confirm', 'h_data_import_confirm'],
+    ['GET', '/data/backup', 'h_data_backup'],
+    ['GET', '/data/files', 'h_data_files_zip'],
 ];
 
 foreach ($routes as $r) {
@@ -116,7 +129,7 @@ foreach ($routes as $r) {
     if (empty($public)) require_login();
     if ($method === 'POST') csrf_check();
     array_shift($m);
-    $handler(...array_map('intval', $m));
+    $handler(...array_map(fn($x) => ctype_digit($x) ? (int)$x : $x, $m));
     exit;
 }
 not_found();

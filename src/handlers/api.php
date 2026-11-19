@@ -11,7 +11,7 @@ function api_auth(): void {
 function api_dispatch(string $method, string $path): void {
     header('Cache-Control: no-store');
     if ($method === 'GET' && $path === '/api/health') {
-        try { val('SELECT 1'); json_out(['ok' => true, 'version' => APP_VERSION]); }
+        try { val('SELECT 1'); json_out(['ok' => true, 'version' => APP_VERSION, 'storage' => is_writable(upload_dir())]); }
         catch (Throwable) { json_out(['ok' => false], 503); }
     }
     if ($method === 'POST' && $path === '/api/leads') {

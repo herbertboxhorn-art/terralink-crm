@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.14.0';
-const SCHEMA_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
+const SCHEMA_VERSION = '1.15.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -67,6 +67,8 @@ function db(): PDO {
     $pdo->exec("SET time_zone = '" . (new DateTime())->format('P') . "'");
     return $pdo;
 }
+require __DIR__ . '/errors.php';
+
 function q(string $sql, array $p = []): PDOStatement { $s = db()->prepare($sql); $s->execute($p); return $s; }
 function all(string $sql, array $p = []): array { return q($sql, $p)->fetchAll(); }
 function one(string $sql, array $p = []): ?array { $r = q($sql, $p)->fetch(); return $r ?: null; }

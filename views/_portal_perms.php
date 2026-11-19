@@ -12,4 +12,19 @@ $can = fn(string $p) => $grantable === null || in_array($p, $grantable, true);
     <span><b>See all company tickets</b><small>Without this they only see tickets they opened or are the contact on</small></span></label>
   <?php endif; ?>
   <?php endforeach; ?>
+  <?php
+  // Limit to sites (v1.15). Needs $siteList (all company sites); $siteLimit = sites the editor may hand out (null = any)
+  $siteList = $siteList ?? [];
+  $siteLimit = $siteLimit ?? null;
+  $chosen = array_map('intval', (array)($pp['site_ids'] ?? []));
+  if ($siteList): ?>
+  <div class="perm" style="cursor:default;flex-direction:column;gap:6px">
+    <span><b>Limit to sites</b><small><?= $siteLimit === null ? 'Leave all unticked to allow every site. Ticked: they only see tickets, gear and plans at those sites (plus tickets they opened).' : 'You can only give access to your own sites.' ?></small></span>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 16px">
+    <?php foreach ($siteList as $st): if ($siteLimit !== null && !in_array((int)$st['id'], $siteLimit, true)) continue; ?>
+      <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" name="site_ids[]" value="<?= (int)$st['id'] ?>" style="width:auto"<?= in_array((int)$st['id'], $chosen, true) ? ' checked' : '' ?>> <?= h($st['name']) ?></label>
+    <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
 </div>

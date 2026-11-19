@@ -3,6 +3,7 @@ $u = user();
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $active = fn(string $p) => ($p === '/' ? $path === '/' : str_starts_with($path, $p)) ? ' class="on"' : '';
 $openTickets = (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed'");
+$clientWait = (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed' AND client_waiting_at IS NOT NULL");
 $myTasks = (int)val('SELECT COUNT(*) FROM tasks WHERE done_at IS NULL AND assigned_to = ? AND (due_date IS NULL OR due_date <= CURDATE())', [uid()]);
 $myDay = $myTasks + (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed' AND assigned_to = ?", [uid()]);
 $lowStock = (int)val('SELECT COUNT(*) FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level');
@@ -37,7 +38,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
     <div class="menu">
       <div class="who"><b><?= h($u['name']) ?></b><small><?= h(ROLES[$u['role']]) ?></small></div>
       <a href="/account">My password</a>
-      <?php if (is_role('admin')): ?><a href="/users">Users</a><a href="/settings">Settings</a><?php if (function_exists('h_data')): ?><a href="/data">Import &amp; export</a><?php endif; ?><?php endif; ?>
+      <?php if (is_role('admin')): $errN = (int)val('SELECT COUNT(*) FROM app_errors WHERE last_at > NOW() - INTERVAL 7 DAY'); ?><a href="/users">Users</a><a href="/settings">Settings</a><a href="/errors">Error log<?= $errN ? ' (' . $errN . ')' : '' ?></a><?php if (function_exists('h_data')): ?><a href="/data">Import &amp; export</a><?php endif; ?><?php endif; ?>
       <div class="themepick" role="group" aria-label="Theme"><button type="button" data-theme-set="light">Light</button><button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="dark">Dark</button></div>
       <form method="post" action="/logout"><?= csrf_field() ?><button type="submit">Sign out</button></form>
     </div>
@@ -50,10 +51,10 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
   <a href="/pipeline"<?= $active('/pipeline') . $active('/deals') ?>><?= $icon('pipeline') ?>Pipeline</a>
   <a href="/companies"<?= $active('/companies') ?>><?= $icon('building') ?>Companies</a>
   <a href="/contacts"<?= $active('/contacts') ?>><?= $icon('user') ?>Contacts</a>
-  <a href="/tickets"<?= $active('/tickets') ?>><?= $icon('ticket') ?>Tickets<?php if ($openTickets): ?><em><?= $openTickets ?></em><?php endif; ?></a>
+  <a href="/tickets"<?= $active('/tickets') ?>><?= $icon('ticket') ?>Tickets<?php if ($clientWait): ?><em class="cw" title="<?= $clientWait ?> client<?= $clientWait === 1 ? '' : 's' ?> waiting for a reply" onclick="location.href='/tickets?f=client';return false"><?= $clientWait ?></em><?php endif; ?><?php if ($openTickets): ?><em<?= $clientWait ? ' style="margin-left:4px"' : '' ?>><?= $openTickets ?></em><?php endif; ?></a>
   <a href="/tasks"<?= $active('/tasks') ?>><?= $icon('check') ?>Tasks<?php if ($myTasks): ?><em><?= $myTasks ?></em><?php endif; ?></a>
   <a href="/equipment"<?= $active('/equipment') . $active('/sites') . $active('/consumables') ?>><?= $icon('router') ?>Inventory<?php if ($lowStock): ?><em title="Low stock"><?= $lowStock ?></em><?php endif; ?></a>
-  <a href="/quotes"<?= $active('/quotes') ?>><?= $icon('doc') ?>Quotes</a>
+  <?php if (!$isTech): ?><a href="/quotes"<?= $active('/quotes') ?>><?= $icon('doc') ?>Quotes</a><?php endif; ?>
   <a href="/catalog"<?= $active('/catalog') ?>><?= $icon('tag') ?>Price list</a>
   <?php if (function_exists('h_plans')): ?><a href="/plans"<?= $active('/plans') ?>><?= $icon('repeat') ?>Service plans</a><?php endif; ?>
   <?php if (is_role('admin', 'sales')): $draftInv = (int)val("SELECT COUNT(*) FROM invoices WHERE status = 'draft'"); ?><a href="/invoices"<?= $active('/invoices') . $active('/billing') ?>><?= $icon('doc') ?>Invoices<?php if ($draftInv): ?><em title="Drafts to review"><?= $draftInv ?></em><?php endif; ?></a><?php endif; ?>

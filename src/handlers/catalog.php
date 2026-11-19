@@ -85,12 +85,14 @@ function quote_release(int $quoteId, string $why = ''): int {
 }
 
 function h_quote_reserve(int $id): void {
+    require_role('admin', 'sales');
     if (!one('SELECT id FROM quotes WHERE id = ?', [$id])) not_found();
     flash(quote_reserve($id));
     redirect("/quotes/$id#stock");
 }
 
 function h_quote_release(int $id): void {
+    require_role('admin', 'sales');
     if (!one('SELECT id FROM quotes WHERE id = ?', [$id])) not_found();
     $n = quote_release($id, 'by hand');
     flash($n ? 'Reservation released. The stock is free again.' : 'Nothing was reserved.');

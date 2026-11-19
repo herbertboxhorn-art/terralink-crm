@@ -99,6 +99,17 @@ function ticket_responded(int $ticketId): void {
     q('UPDATE tickets SET first_response_at = NOW() WHERE id = ? AND first_response_at IS NULL', [$ticketId]);
 }
 
+/** Badge when the client spoke last in the portal (v1.15) */
+function client_waiting_badge(array $t): string {
+    if (empty($t['client_waiting_at']) || ($t['status'] ?? '') === 'closed') return '';
+    return '<span class="sla sla-soon" title="The client replied in the portal">Client waiting · ' . h(ago($t['client_waiting_at'])) . '</span>';
+}
+
+/** Staff answered the client (public reply, status change or close): clears the flag */
+function ticket_client_answered(int $ticketId): void {
+    q('UPDATE tickets SET client_waiting_at = NULL WHERE id = ?', [$ticketId]);
+}
+
 /** SQL condition for "no response yet and past its target" (priority-specific hours from settings) */
 function sla_overdue_sql(string $alias = 't'): string {
     $parts = [];

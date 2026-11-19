@@ -26,7 +26,7 @@
 
   // Portal login presets <-> permission ticks
   $$('[data-preset]').forEach(sel => {
-    const boxes = $$('.perms input[type=checkbox]', sel.form);
+    const boxes = $$('.perms input[type=checkbox]:not([name="site_ids[]"])', sel.form);
     const apply = () => { const o = sel.selectedOptions[0]; if (!o?.dataset.perms) return; const on = o.dataset.perms.split(','); boxes.forEach(b => b.checked = on.includes(b.name)); };
     sel.addEventListener('change', apply); apply();
     boxes.forEach(b => b.addEventListener('change', () => { sel.value = ''; }));

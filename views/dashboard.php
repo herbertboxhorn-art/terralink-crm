@@ -18,7 +18,7 @@ $first = explode(' ', user()['name'])[0];
 
 <div class="stats">
   <a class="stat<?= ($pipeline['new']['n'] ?? 0) ? ' hot' : '' ?>" href="/pipeline"><small>New leads</small><b><?= (int)($pipeline['new']['n'] ?? 0) ?></b><span>waiting for first call</span></a>
-  <a class="stat<?= $slaOverdue ? ' hot' : '' ?>" href="/tickets?f=<?= $slaOverdue ? 'overdue' : 'open' ?>"><small>Open tickets</small><b><?= count($openTickets) ?></b><span><?= $slaOverdue ? "$slaOverdue past response target" : 'all on time' ?></span></a>
+  <a class="stat<?= $slaOverdue || $clientWaiting ? ' hot' : '' ?>" href="/tickets?f=<?= $clientWaiting ? 'client' : ($slaOverdue ? 'overdue' : 'open') ?>"><small>Open tickets</small><b><?= (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed'") ?></b><span><?= implode(' · ', array_filter([$clientWaiting ? "$clientWaiting client waiting" : '', $slaOverdue ? "$slaOverdue past response target" : ''])) ?: 'all on time' ?></span></a>
   <a class="stat<?= $overdueCount ? ' hot' : '' ?>" href="/today"><small>My tasks</small><b><?= $myTaskCount ?></b><span><?= $overdueCount ? "$overdueCount overdue" : 'none overdue' ?></span></a>
   <a class="stat" href="/pipeline"><small>Open pipeline</small><b><?= h(money0($openVal)) ?></b><span><?= $open ?> active deal<?= $open === 1 ? '' : 's' ?></span></a>
   <a class="stat" href="/pipeline"><small>Won in <?= date('F') ?></small><b><?= h(money0($wonVal)) ?></b><span>closed deals</span></a>

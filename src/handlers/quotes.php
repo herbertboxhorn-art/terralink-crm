@@ -13,6 +13,7 @@ function quote_totals(array $items, float $gst, float $pst): array {
 }
 
 function h_quotes(): void {
+    require_role('admin', 'sales');
     $f = (string)get('f', '');
     $w = isset(QUOTE_STATUS[$f]) ? 'WHERE q.status = ' . db()->quote($f) : '';
     $rows = all("SELECT q.*, c.name company,
@@ -43,6 +44,7 @@ function read_items(): array {
 }
 
 function h_quote_form(int $id = 0): void {
+    require_role('admin', 'sales');
     $validDays = (int)setting('quote_valid_days', '30');
     $row = $id ? one('SELECT * FROM quotes WHERE id = ?', [$id]) : [
         'company_id' => int_or_null(get('company_id')), 'deal_id' => int_or_null(get('deal_id')),
@@ -104,6 +106,7 @@ function load_quote(int $id): array {
 }
 
 function h_quote_show(int $id): void {
+    require_role('admin', 'sales');
     [$qt, $items, $tot] = load_quote($id);
     $timeline = all("SELECT a.*, COALESCE(u.name, CONCAT(pu.name, ' (client)')) who FROM activities a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN portal_users pu ON pu.id = a.portal_user_id WHERE a.entity_type = 'quote' AND a.entity_id = ? ORDER BY a.created_at DESC", [$id]);
     view('quote', ['title' => $qt['number'] . ' — ' . $qt['title'], 'qt' => $qt, 'items' => $items, 'tot' => $tot, 'timeline' => $timeline, 'stock' => quote_stock($id)]);
@@ -128,6 +131,7 @@ function quote_pdf(int $id): array {
 }
 
 function h_quote_pdf(int $id): void {
+    require_role('admin', 'sales');
     [$bytes, $fname] = quote_pdf($id);
     header('Content-Type: application/pdf');
     header('Content-Disposition: ' . (get('dl') ? 'attachment' : 'inline') . '; filename="' . $fname . '"');
@@ -136,6 +140,7 @@ function h_quote_pdf(int $id): void {
 
 /** Email the quote PDF to the client (through n8n / noreply@, replies go to the sender) */
 function h_quote_email(int $id): void {
+    require_role('admin', 'sales');
     [$qt, $items, $tot] = load_quote($id);
     $first = $qt['first_name'] ?: 'there';
     $co = setting('company_name', 'TerraLink Systems');
@@ -156,6 +161,8 @@ function h_quote_email(int $id): void {
         if (!$errors) {
             [$bytes, $fname] = quote_pdf($id);
             $html = nl2br(h($v['message']), false);
+            if (portal_company_has((int)$qt['company_id'], 'perm_quotes') && in_array($qt['status'], ['draft', 'sent'], true))
+                $html .= mail_button(portal_url("/quotes/$id"), 'Review & accept online') . '<p style="color:#7a8a97;font-size:13px">Uses your ' . h(setting('company_name', 'TerraLink')) . ' client portal login.</p>';
             $att = ['name' => $fname, 'mime' => 'application/pdf', 'data' => $bytes];
             $msgs = [];
             foreach ($to as $a) $msgs[] = ['to' => $a, 'subject' => $v['subject'], 'html' => $html, 'reply_to' => user()['email'], 'attachment' => $att];
@@ -177,6 +184,7 @@ function h_quote_email(int $id): void {
 }
 
 function h_quote_status(int $id): void {
+    require_role('admin', 'sales');
     $qt = one('SELECT * FROM quotes WHERE id = ?', [$id]);
     if (!$qt) not_found();
     $st = (string)post('status', '');
@@ -215,6 +223,7 @@ function quote_set_status(array $qt, string $st, ?array $client = null): string 
 }
 
 function h_quote_duplicate(int $id): void {
+    require_role('admin', 'sales');
     [$qt, $items] = load_quote($id);
     $validDays = (int)setting('quote_valid_days', '30');
     $num = next_number('quote');
@@ -232,6 +241,7 @@ function h_quote_duplicate(int $id): void {
 }
 
 function h_quote_delete(int $id): void {
+    require_role('admin', 'sales');
     require_role('admin', 'sales');
     q("DELETE FROM activities WHERE entity_type = 'quote' AND entity_id = ?", [$id]);
     q('DELETE FROM quotes WHERE id = ?', [$id]);

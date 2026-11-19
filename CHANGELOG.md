@@ -1,5 +1,16 @@
 # TerraLink CRM changelog
 
+## 1.15.0 — 2026-11-19 (audit release)
+- **Client waiting:** when a client opens a ticket or replies in the portal, the ticket is flagged "Client waiting" until someone replies to the client, changes the status or closes it (internal notes don't clear it). New "Client waiting" filter on Tickets, a blue count next to Tickets in the menu, badges on tickets and My day, and the dashboard tile. Admins' morning email lists clients waiting on unassigned tickets.
+- **Default assignee for portal tickets:** Settings → Client portal. New portal tickets go straight into that person's My day.
+- **Overdue invoice reminders:** automatic polite reminder 3 days after the due date and a second one at 14 days, with the PDF attached and a portal link. Herb gets a one-line summary. On/off in Settings, and per company on its Edit page.
+- **Closing emails clients:** closing a ticket emails the client who opened it (or the contact's portal login) that it's resolved, with a link to the work summary.
+- **Portal links in emails:** quote emails get a "Review & accept online" button and invoice emails "View your invoices in the portal", when the company has a portal login with that access.
+- **Site-limited portal logins:** a login can be limited to certain sites (e.g. a camp manager only sees that camp's tickets, gear and plans). A site-limited client admin can only give out their own sites.
+- **Tech role tightened:** only admins can delete contacts, deals and equipment; techs no longer see quotes (menu, company tab, deal page, search, all quote pages).
+- **Error log** (admin menu → Error log): crashes, fatal errors and PHP warnings on the live server are logged (same error counted, not repeated) with a stack trace; visitors get a friendly error page. Admins' morning email mentions new errors.
+- **Audit fixes:** "Reply to client" is never pre-ticked (prevents internal notes reaching clients by accident); a company with invoices can't be deleted (it used to crash); old portal links and login attempts are cleaned up daily; HSTS and Permissions-Policy headers added.
+
 ## 1.14.0 — 2026-11-19
 - **Client portal** at portal.terralinksystems.com: the same app and database on its own hostname, with its own logins and session. Staff pages are never served there.
 - **Logins per company.** Each company can have several portal logins. Each login has ticks for: Tickets (own, or "see all company tickets"), Sites & equipment, Service plans, Quotes, Invoices & payments, Manage users. Plan fees and ticket charges only show with Invoices.

@@ -8,7 +8,7 @@
       <span><?= h($d['service']) ?></span><?php if ($d['value'] > 0): ?><b><?= h(money($d['value'])) ?></b><?php endif; ?></div>
   </div>
   <div class="actions">
-    <?php if ($d['company_id']): ?><a class="btn primary" href="/quotes/new?deal_id=<?= $id ?>">+ Quote</a><?php endif; ?>
+    <?php if ($d['company_id'] && !is_role('tech')): ?><a class="btn primary" href="/quotes/new?deal_id=<?= $id ?>">+ Quote</a><?php endif; ?>
     <a class="btn" href="/deals/<?= $id ?>/edit">Edit</a>
   </div>
 </div>
@@ -35,7 +35,7 @@
         <dt>Created</dt><dd><?= h(fdate($d['created_at'])) ?></dd>
       </dl>
     </div>
-    <?php if ($quotes): ?><div class="card"><h2>Quotes</h2><ul class="list"><?php foreach ($quotes as $qt): ?>
+    <?php if ($quotes && !is_role('tech')): ?><div class="card"><h2>Quotes</h2><ul class="list"><?php foreach ($quotes as $qt): ?>
       <li><span class="pill <?= h($qt['status']) ?>"><?= h(QUOTE_STATUS[$qt['status']]) ?></span><div class="grow"><a href="/quotes/<?= (int)$qt['id'] ?>"><?= h($qt['number']) ?></a><span class="meta"><?= h(fdate($qt['issued_on'])) ?></span></div></li>
     <?php endforeach; ?></ul></div><?php endif; ?>
     <?php $link = ['deal_id' => $id]; $back = "/deals/$id"; require __DIR__ . '/_tasks.php'; ?>

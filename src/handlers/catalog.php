@@ -201,3 +201,101 @@ function h_catalog_delete(int $id): void {
     }
     redirect('/catalog');
 }
+
+// ---------- CSV import (admin) ----------
+/** CSV header aliases → catalog field. Same columns as the price list export, plus Description. */
+const CATALOG_IMPORT_COLS = [
+    'sku'         => ['sku', 'sku / part number', 'part number', 'part', 'code'],
+    'name'        => ['item', 'name', 'item name', 'service', 'product'],
+    'description' => ['description', 'text on the quote', 'quote text'],
+    'kind'        => ['type', 'kind', 'category'],
+    'unit'        => ['unit', 'per', 'uom'],
+    'price'       => ['price', 'sell price', 'rate'],
+    'cost'        => ['cost', 'your cost'],
+    'pst_applies' => ['pst', 'pst applies', 'charge pst'],
+    'active'      => ['active', 'status'],
+];
+
+function catalog_import_money(string $v): ?float {
+    $v = str_replace(['$', ',', ' ', 'CAD', 'cad'], '', trim($v));
+    return ($v === '' || !is_numeric($v)) ? null : round((float)$v, 2);
+}
+
+function catalog_import_yes(string $v): bool {
+    return in_array(strtolower(trim($v)), ['1', 'yes', 'y', 'true', 'x', 'active', 'pst'], true);
+}
+
+function catalog_import_kind(string $v): string {
+    $v = strtolower(trim($v));
+    foreach (ITEM_KINDS as $k => $label) if ($v === $k || $v === strtolower($label)) return $k;
+    foreach (ITEM_KINDS as $k => $label) if ($v !== '' && str_starts_with(strtolower($label), $v)) return $k;
+    return 'other';
+}
+
+/** POST /catalog/import — adds new items and updates existing ones (matched by SKU, else by name). Stock links are kept. */
+function h_catalog_import(): void {
+    require_role('admin');
+    $u = $_FILES['csv'] ?? null;
+    if (!$u || $u['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($u['tmp_name'])) { flash('Choose a CSV file to import.', 'bad'); redirect('/catalog'); }
+    $raw = (string)file_get_contents($u['tmp_name']);
+    if (!mb_check_encoding($raw, 'UTF-8')) $raw = mb_convert_encoding($raw, 'UTF-8', 'Windows-1252');
+    $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
+    $first = (string)strtok($raw, "\n");
+    $delim = substr_count($first, ';') > substr_count($first, ',') ? ';' : (substr_count($first, "\t") > substr_count($first, ',') ? "\t" : ',');
+    $fh = fopen('php://memory', 'r+'); fwrite($fh, $raw); rewind($fh);
+    $map = [];
+    foreach (fgetcsv($fh, null, $delim, '"', '') ?: [] as $i => $hd) {
+        $hd = preg_replace('/\s+/', ' ', strtolower(trim((string)$hd)));
+        foreach (CATALOG_IMPORT_COLS as $key => $aliases) if (in_array($hd, $aliases, true) && !in_array($key, $map, true)) { $map[$i] = $key; break; }
+    }
+    if (!in_array('name', $map, true) || !in_array('price', $map, true)) { flash('The file needs at least an "Item" and a "Price" column (the same columns as the price list export).', 'bad'); redirect('/catalog'); }
+
+    $rows = []; $bad = [];
+    $line = 1;
+    while (($cells = fgetcsv($fh, null, $delim, '"', '')) !== false) {
+        $line++;
+        if (count(array_filter($cells, fn($c) => trim((string)$c) !== '')) === 0) continue;
+        $r = [];
+        foreach ($map as $i => $key) $r[$key] = trim(ltrim((string)($cells[$i] ?? ''), "'"));
+        $price = catalog_import_money($r['price'] ?? '');
+        if (($r['name'] ?? '') === '' || $price === null) { $bad[] = $line; continue; }
+        $rows[] = $r + ['_price' => $price];
+        if (count($rows) > 2000) { flash('That file has more than 2,000 items. Split it into smaller files.', 'bad'); redirect('/catalog'); }
+    }
+    if (!$rows) { flash('No items with a name and a price were found in the file.', 'bad'); redirect('/catalog'); }
+
+    $added = 0; $updated = 0;
+    db()->beginTransaction();
+    try {
+        foreach ($rows as $r) {
+            $sku = mb_substr($r['sku'] ?? '', 0, 60);
+            $id = $sku !== '' ? val('SELECT id FROM catalog_items WHERE sku = ? ORDER BY active DESC, id LIMIT 1', [$sku]) : null;
+            if (!$id) $id = val('SELECT id FROM catalog_items WHERE LOWER(name) = LOWER(?) ORDER BY active DESC, id LIMIT 1', [$r['name']]);
+            $f = [
+                'name'  => mb_substr($r['name'], 0, 190),
+                'price' => $r['_price'],
+            ];
+            if (array_key_exists('sku', $r))         $f['sku'] = str_or_null($sku);
+            if (array_key_exists('description', $r)) $f['description'] = str_or_null(mb_substr($r['description'], 0, 255));
+            if (array_key_exists('kind', $r))        $f['kind'] = catalog_import_kind($r['kind']);
+            if (array_key_exists('unit', $r))        $f['unit'] = str_or_null(mb_substr($r['unit'], 0, 20));
+            if (array_key_exists('cost', $r))        $f['cost'] = catalog_import_money($r['cost']);
+            if (array_key_exists('pst_applies', $r)) $f['pst_applies'] = (int)catalog_import_yes($r['pst_applies']);
+            if (array_key_exists('active', $r))      $f['active'] = (int)($r['active'] === '' || catalog_import_yes($r['active']));
+            if ($id) {
+                q('UPDATE catalog_items SET ' . implode(', ', array_map(fn($k) => "`$k` = ?", array_keys($f))) . ' WHERE id = ?', [...array_values($f), $id]);
+                $updated++;
+            } else {
+                $f += ['kind' => 'other', 'active' => 1];
+                q('INSERT INTO catalog_items (' . implode(', ', array_map(fn($k) => "`$k`", array_keys($f))) . ') VALUES (' . implode(',', array_fill(0, count($f), '?')) . ')', array_values($f));
+                $added++;
+            }
+        }
+        db()->commit();
+    } catch (Throwable $e) {
+        db()->rollBack();
+        flash('Import stopped, nothing was saved: ' . $e->getMessage(), 'bad'); redirect('/catalog');
+    }
+    flash("Price list import: $added added, $updated updated" . ($bad ? '; skipped line' . (count($bad) > 1 ? 's ' : ' ') . implode(', ', array_slice($bad, 0, 10)) . ' (no name or price)' : '') . '.');
+    redirect('/catalog');
+}

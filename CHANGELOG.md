@@ -1,5 +1,9 @@
 # TerraLink CRM changelog
 
+## 1.10.0 — 2026-11-19
+- **Price list import** (admins): "Import price list from CSV" on the Price list page adds new items and updates existing ones, matched by SKU, then by name. Uses the same columns as the price list export; stock links are kept.
+- Price list CSV export now includes the Description column.
+
 ## 1.9.0 — 2026-11-19
 - **Price list** (new menu item): standard items and rates with SKU, type, unit, sell price, optional cost (margin shown, never on quotes), PST default, and an optional link to stock (an equipment model or a consumable). Items used on quotes are hidden rather than deleted.
 - **Quote picker:** "Add from price list" on the quote editor fills in the line (text, unit, price, PST) and shows the free stock under it, in red when there isn't enough

@@ -100,7 +100,7 @@ function h_account(): void {
 function h_settings(): void {
     require_role('admin');
     $keys = ['company_name', 'company_phone', 'company_email', 'company_address', 'gst_number',
-             'travel_rate_per_km', 'quote_valid_days', 'quote_terms'];
+             'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($keys as $k) {
             q('INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)', [$k, (string)post($k, '')]);

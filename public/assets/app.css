@@ -96,7 +96,7 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .tablewrap{overflow-x:auto;margin:-4px -18px;padding:0 18px}
 
 .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:20px;background:var(--bg);color:var(--muted);white-space:nowrap;line-height:20px}
-.pill.new,.pill.open,.pill.draft{background:var(--info-t);color:var(--info)}
+.pill.new,.pill.open,.pill.draft,.pill.in_stock{background:var(--info-t);color:var(--info)}
 .pill.audit_booked,.pill.in_progress,.pill.sent{background:var(--orange-t);color:#a64a00}
 .pill.quoted,.pill.waiting{background:var(--warn-t);color:var(--warn)}
 .pill.won,.pill.closed,.pill.accepted,.pill.active{background:var(--ok-t);color:var(--ok)}

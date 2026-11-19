@@ -32,6 +32,13 @@ function deal_opts(?int $companyId): array {
 
 /** @return array{table:string,label:string,fields:array} */
 function entity_def(string $name, array $ctx = []): array {
+    $def = entity_def_raw($name, $ctx);
+    $stock = $ctx['in_stock'] ?? null;
+    if ($stock !== null) $def['fields'] = array_filter($def['fields'], fn($f) => !(($f['stock_only'] ?? false) && !$stock) && !(($f['site_only'] ?? false) && $stock));
+    return $def;
+}
+
+function entity_def_raw(string $name, array $ctx = []): array {
     $cid = $ctx['company_id'] ?? null;
     return match ($name) {
         'company' => ['table' => 'companies', 'label' => 'Company', 'fields' => [
@@ -88,10 +95,25 @@ function entity_def(string $name, array $ctx = []): array {
             'mac'            => ['MAC', 'text'],
             'ip_address'     => ['IP address', 'text'],
             'phone_number'   => ['Phone number (lines)', 'tel'],
-            'installed_at'   => ['Installed', 'date'],
+            'status'         => ['Status', 'select', 'options' => ($ctx['in_stock'] ?? false) ? STOCK_STATUS : SITE_STATUS],
+            'stock_location' => ['Stock location', 'select', 'options' => ['' => '—'] + opts(stock_locations()), 'stock_only' => true],
+            'installed_at'   => ['Installed', 'date', 'site_only' => true],
             'warranty_until' => ['Warranty until', 'date'],
-            'status'         => ['Status', 'select', 'options' => EQUIP_STATUS],
+            'supplier'       => ['Supplier', 'text'],
+            'purchased_at'   => ['Purchased', 'date'],
+            'cost'           => ['Cost ($)', 'money'],
             'notes'          => ['Notes', 'textarea'],
+        ]],
+        'consumable' => ['table' => 'consumables', 'label' => 'Consumable', 'fields' => [
+            'name'          => ['Item name', 'text', 'required' => true, 'placeholder' => 'e.g. Cat6 outdoor cable, RJ45 shielded'],
+            'category'      => ['Category', 'select', 'options' => opts(CONSUMABLE_CATEGORIES)],
+            'sku'           => ['SKU / part #', 'text'],
+            'unit'          => ['Unit', 'select', 'options' => CONSUMABLE_UNITS],
+            'reorder_level' => ['Re-order when at or below', 'number', 'step' => '0.01'],
+            'unit_cost'     => ['Cost per unit ($)', 'money'],
+            'location'      => ['Location', 'select', 'options' => ['' => '—'] + opts(stock_locations())],
+            'supplier'      => ['Supplier', 'text'],
+            'notes'         => ['Notes', 'textarea'],
         ]],
         'ticket' => ['table' => 'tickets', 'label' => 'Ticket', 'fields' => [
             'subject'     => ['Subject', 'text', 'required' => true],

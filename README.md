@@ -1,8 +1,8 @@
-# TerraLink CRM v1.4.2
+# TerraLink CRM v1.5.0
 
 A self-hosted CRM for TerraLink Systems, built with PHP 8.3 and MySQL 8.4 in the Backcountry Pro look. It runs on desktop and on phones in the field.
 
-**Modules:** companies & contacts · pipeline · activity timeline · tasks · client sites & installed equipment · support tickets · quotes with PDF · website-lead API for n8n · users & roles.
+**Modules:** companies & contacts · pipeline · activity timeline · tasks · client sites & installed equipment · inventory (stock + consumables) · support tickets · quotes with PDF · website-lead API for n8n · users & roles.
 
 ---
 

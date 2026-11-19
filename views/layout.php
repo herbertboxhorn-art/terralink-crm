@@ -43,7 +43,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
   <a href="/contacts"<?= $active('/contacts') ?>><?= $icon('user') ?>Contacts</a>
   <a href="/tickets"<?= $active('/tickets') ?>><?= $icon('ticket') ?>Tickets<?php if ($openTickets): ?><em><?= $openTickets ?></em><?php endif; ?></a>
   <a href="/tasks"<?= $active('/tasks') ?>><?= $icon('check') ?>Tasks<?php if ($myTasks): ?><em><?= $myTasks ?></em><?php endif; ?></a>
-  <a href="/equipment"<?= $active('/equipment') . $active('/sites') ?>><?= $icon('router') ?>Equipment</a>
+  <a href="/equipment"<?= $active('/equipment') . $active('/sites') ?>><?= $icon('router') ?>Inventory<?php $low = (int)val('SELECT COUNT(*) FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level'); if ($low): ?><em title="Low stock"><?= $low ?></em><?php endif; ?></a>
   <a href="/quotes"<?= $active('/quotes') ?>><?= $icon('doc') ?>Quotes</a>
   <div class="ver">v<?= APP_VERSION ?></div>
 </nav>

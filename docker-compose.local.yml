@@ -1,10 +1,8 @@
 # Run on your own computer (Docker Desktop):
-#   docker compose -f docker-compose.yaml -f docker-compose.local.yml up -d --build
-#   docker compose logs app   → open the one-time setup link, but replace the host with http://localhost:8080
+#   APP_COMMIT=$(git rev-parse HEAD) docker compose -f docker-compose.yaml -f docker-compose.local.yml up -d
+#   docker compose logs app   → open the one-time setup link with the host replaced by http://localhost:8080
 services:
   app:
-    build:
-      context: .
     ports: ["8080:80"]
     environment:
       APP_URL: http://localhost:8080

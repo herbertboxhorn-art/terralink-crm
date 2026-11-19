@@ -4,7 +4,7 @@
 - Production stack generates DB passwords and the API key on the server (Docker volume), never in config files
 - One-time first-admin setup link (printed to the app log, 48 h, single use)
 - Settings shows the n8n API URL and key to admins
-- Builds straight from GitHub; `*_FILE` env support
+- Runs on stock images (Hostinger does not build): the app container fetches this repo at the pinned `APP_COMMIT` on start; `*_FILE` env support
 
 ## 1.3.0 — 2026-11-19 (first local build, not yet deployed)
 - Core: companies, contacts, deals pipeline (New → Audit booked → Quoted → Won/Lost, drag & drop), activity timeline, tasks/follow-ups, global search

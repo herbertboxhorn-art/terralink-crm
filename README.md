@@ -9,7 +9,7 @@ A self-hosted CRM for TerraLink Systems, built with PHP 8.3 and MySQL 8.4 in the
 ## 1. Run it on your own computer (Docker Desktop)
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.local.yml up -d --build
+APP_COMMIT=$(git rev-parse HEAD) docker compose -f docker-compose.yaml -f docker-compose.local.yml up -d
 docker compose logs app        # copy the one-time setup link
 ```
 
@@ -19,10 +19,10 @@ Open the setup link with the host changed to `http://localhost:8080`, then creat
 
 This runs on VPS `srv1682079` (187.77.11.153) as Docker project **`terralink-crm`**, served at https://crm.terralinksystems.com through the existing Traefik proxy (`letsencrypt` resolver).
 
-- **Code:** `docker-compose.yaml` builds the app straight from this repo's `master` branch.
+- **Code:** Hostinger's Docker Manager can't build images. Instead the `app` container (stock `php:8.3-apache`) fetches this repo at the commit set in the project's `APP_COMMIT` variable each time it starts, verifies the commit, and runs `composer install`.
 - **Secrets:** generated on the server at first start and stored in the `crm-secrets` volume: the database passwords and the n8n API key. Nobody needs to type or store them.
 - **First admin:** while no users exist, the app prints a one-time setup link (valid 48 h) in its log. View it in hPanel → VPS → Docker Manager → terralink-crm → Logs. Restarting the app container prints a fresh link.
-- **Updating:** push to `master`, then redeploy the project in Docker Manager. Migrations run automatically, and data and secrets volumes are kept.
+- **Updating:** push to `master`, set `APP_COMMIT` to the new commit SHA in the project's environment, then redeploy. Migrations run automatically, and data and secrets volumes are kept.
 
 ### Backups
 The `backup` container writes `crm-YYYY-MM-DD.sql.gz` into the `crm-backups` volume every night at 02:30 Pacific and keeps 14 days.

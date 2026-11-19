@@ -42,7 +42,7 @@ services:
       - crm-secrets:/run/crm:ro
 
   app:
-    image: terralink-crm:latest
+    pull_policy: build   # never look for this image on a registry — always build it here
     build:
       # Built straight from this GitHub repo (master). For local builds see docker-compose.local.yml.
       context: https://github.com/herbertboxhorn-art/terralink-crm.git#master

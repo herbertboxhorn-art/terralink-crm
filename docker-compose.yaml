@@ -41,49 +41,64 @@ services:
       - mysql-data:/var/lib/mysql
       - crm-secrets:/run/crm:ro
 
+  code:
+    # One-shot: fetch this repo at the pinned APP_COMMIT, verify it, install PHP dependencies
+    # into the crm-code volume. (Hostinger's Docker Manager runs stock images only — no builds.)
+    image: composer:2
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        : "$${APP_COMMIT:?APP_COMMIT must be a full git commit SHA}"
+        rm -rf /tmp/src
+        mkdir /tmp/src
+        cd /tmp/src
+        git init -q
+        git remote add origin https://github.com/herbertboxhorn-art/terralink-crm.git
+        git fetch -q --depth 1 origin "$$APP_COMMIT"
+        git checkout -q FETCH_HEAD
+        test "$$(git rev-parse HEAD)" = "$$APP_COMMIT"
+        find /code -mindepth 1 -delete
+        cp -a src views public sql bin docker composer.json composer.lock /code/
+        rm -f /code/public/dev-router.php /code/bin/seed-demo.php
+        cd /code
+        composer install -q --no-dev --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-*
+        chmod -R a+rX,go-w /code
+        echo "TerraLink CRM code ready at commit $$APP_COMMIT"
+    environment:
+      APP_COMMIT: ${APP_COMMIT}
+    volumes:
+      - crm-code:/code
+
   app:
-    # Hostinger's Docker Manager does not build images, so the stock PHP image fetches the
-    # CRM code from GitHub at start-up, pinned to APP_COMMIT (set in the project environment).
     image: php:8.3-apache
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        set -e
-        : "$${APP_COMMIT:?APP_COMMIT must be set to a full git commit SHA}"
-        if ! command -v git >/dev/null || ! command -v composer >/dev/null; then
-          apt-get update && apt-get install -y --no-install-recommends git unzip composer && rm -rf /var/lib/apt/lists/*
-        fi
+        set -eu
         php -m | grep -q pdo_mysql || docker-php-ext-install pdo_mysql
         a2enmod rewrite headers remoteip >/dev/null
         [ -f /usr/local/etc/php/php.ini ] || cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
         printf 'expose_php=Off\nmemory_limit=256M\nupload_max_filesize=8M\npost_max_size=10M\ndate.timezone=America/Vancouver\n' > /usr/local/etc/php/conf.d/crm.ini
-        rm -rf /tmp/src && mkdir /tmp/src && cd /tmp/src
-        git init -q && git remote add origin https://github.com/herbertboxhorn-art/terralink-crm.git
-        git fetch -q --depth 1 origin "$$APP_COMMIT" && git checkout -q FETCH_HEAD
-        [ "$$(git rev-parse HEAD)" = "$$APP_COMMIT" ] || { echo "commit mismatch"; exit 1; }
-        echo "TerraLink CRM code at commit $$APP_COMMIT"
-        rm -rf /var/www/crm && mkdir -p /var/www/crm
-        cp -a src views public sql bin docker composer.json composer.lock /var/www/crm/
-        rm -f /var/www/crm/public/dev-router.php /var/www/crm/bin/seed-demo.php
-        cd /var/www/crm && COMPOSER_ALLOW_SUPERUSER=1 composer install -q --no-dev --no-interaction --prefer-dist --optimize-autoloader
-        cp docker/apache.conf /etc/apache2/sites-available/000-default.conf
-        chown -R root:www-data /var/www/crm && chmod -R a-w /var/www/crm
-        php bin/migrate.php
-        php bin/setup-token.php
+        cp /var/www/crm/docker/apache.conf /etc/apache2/sites-available/000-default.conf
+        php /var/www/crm/bin/migrate.php
+        php /var/www/crm/bin/setup-token.php
         exec docker-php-entrypoint apache2-foreground
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      code:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 180s
+      start_period: 120s
     environment:
       <<: *tz
-      APP_COMMIT: ${APP_COMMIT}
       APP_ENV: production
       APP_URL: https://crm.terralinksystems.com
       APP_TZ: America/Vancouver
@@ -94,6 +109,7 @@ services:
       DB_PASS_FILE: /run/crm/db_pass
       CRM_API_KEY_FILE: /run/crm/api_key
     volumes:
+      - crm-code:/var/www/crm:ro
       - crm-secrets:/run/crm:ro
     expose:
       - "80"
@@ -132,6 +148,7 @@ services:
         done
 
 volumes:
+  crm-code:
   mysql-data:
   crm-secrets:
   crm-backups:

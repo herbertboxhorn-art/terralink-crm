@@ -1,4 +1,4 @@
-# TerraLink CRM v1.3.1
+# TerraLink CRM v1.4.0
 
 A self-hosted CRM for TerraLink Systems, built with PHP 8.3 and MySQL 8.4 in the Backcountry Pro look. It runs on desktop and on phones in the field.
 
@@ -15,22 +15,18 @@ docker compose logs app        # copy the one-time setup link
 
 Open the setup link with the host changed to `http://localhost:8080`, then create your admin account.
 
-## 2. Production (Hostinger VPS)
+## 2. Production (Hostinger web hosting)
 
-This runs on VPS `srv1682079` (187.77.11.153) as Docker project **`terralink-crm`**, served at https://crm.terralinksystems.com through the existing Traefik proxy (`letsencrypt` resolver).
+This runs on Hostinger **web hosting** (account `u300896537`) as the site **crm.terralinksystems.com**, next to the WordPress site.
 
-- **Code:** Hostinger's Docker Manager can't build images. Instead the `app` container (stock `php:8.3-apache`) fetches this repo at the commit set in the project's `APP_COMMIT` variable each time it starts, verifies the commit, and runs `composer install`.
-- **Secrets:** generated on the server at first start and stored in the `crm-secrets` volume: the database passwords and the n8n API key. Nobody needs to type or store them.
-- **First admin:** while no users exist, the app prints a one-time setup link (valid 48 h) in its log. View it in hPanel → VPS → Docker Manager → terralink-crm → Logs. Restarting the app container prints a fresh link.
-- **Updating:** push to `master`, set `APP_COMMIT` to the new commit SHA in the project's environment, then redeploy. Migrations run automatically, and data and secrets volumes are kept.
+- **Code:** hPanel deploys the **`hosting`** branch of this repo into `public_html`. That branch is `master` plus the `vendor/` folder, because shared hosting can't run composer. The root `.htaccess` maps every request into `public/`, so `src/`, `vendor/`, `sql/` and `.git` can never be served.
+- **Settings and passwords** live in `/home/u300896537/domains/crm.terralinksystems.com/crm-config.php`. That's outside `public_html` and never in git. It holds the DB credentials, the n8n API key and the first-run setup token hash.
+- **Database:** MySQL on the hosting account. Tables are created and updated automatically on the first request after a deploy.
+- **First admin:** a one-time setup link (48 h). It's only usable while no users exist.
+- **Updating:** commit to `master` → rebuild the `hosting` branch (`tools/make-hosting-branch.sh --push` in the dev workspace) → redeploy in hPanel. Data and the config file are untouched.
+- **Backups:** handled by Hostinger's hosting backups, which cover files and databases. Check hPanel → Backups for the schedule.
 
-### Backups
-The `backup` container writes `crm-YYYY-MM-DD.sql.gz` into the `crm-backups` volume every night at 02:30 Pacific and keeps 14 days.
-
-**Restore:**
-```bash
-docker exec -i terralink-crm-db-1 sh -c 'mysql -uroot -p"$(cat /run/crm/db_root_pass)" terralink_crm' < crm-2026-11-19.sql
-```
+The Docker files (`docker-compose.yaml`, `Dockerfile`) are kept for running it on your own computer or a VPS.
 
 ## 3. Website leads via n8n
 

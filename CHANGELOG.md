@@ -1,5 +1,10 @@
 # TerraLink CRM changelog
 
+## 1.4.0 — 2026-11-19
+- Moved production to Hostinger web hosting (shared): `crm-config.php` outside the web root, root `.htaccess` → `public/`, automatic schema migration, setup token from config
+- `hosting` branch carries vendor/ (no composer on shared hosting)
+- `.htaccess` header rules made conditional (no 500 if mod_headers is missing)
+
 ## 1.3.1 — 2026-11-19
 - Production stack generates DB passwords and the API key on the server (Docker volume), never in config files
 - One-time first-admin setup link (printed to the app log, 48 h, single use)

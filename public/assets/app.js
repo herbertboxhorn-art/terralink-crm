@@ -5,6 +5,25 @@
   const csrf = $('meta[name=csrf]')?.content || '';
   const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Theme: light / auto / dark (stored per browser)
+  const applyTheme = t => {
+    const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    $$('[data-theme-set]').forEach(b => b.classList.toggle('on', b.dataset.themeSet === t));
+  };
+  let theme = 'auto'; try { theme = localStorage.getItem('tl-theme') || 'auto'; } catch (e) {}
+  applyTheme(theme);
+  $$('[data-theme-set]').forEach(b => b.addEventListener('click', () => { theme = b.dataset.themeSet; try { localStorage.setItem('tl-theme', theme); } catch (e) {} applyTheme(theme); }));
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => theme === 'auto' && applyTheme('auto'));
+
+  // Timeline: hide automatic entries (remembered)
+  $$('[data-tl-toggle]').forEach(cb => {
+    const tl = cb.closest('.card').querySelector('.timeline');
+    let hide = false; try { hide = localStorage.getItem('tl-hide-system') === '1'; } catch (e) {}
+    cb.checked = hide; tl?.classList.toggle('hide-system', hide);
+    cb.addEventListener('change', () => { tl?.classList.toggle('hide-system', cb.checked); try { localStorage.setItem('tl-hide-system', cb.checked ? '1' : '0'); } catch (e) {} });
+  });
+
   // Mobile "More" drawer
   $$('[data-toggle-nav]').forEach(b => b.addEventListener('click', () => document.body.classList.toggle('nav-open')));
 
@@ -56,7 +75,7 @@
     const recount = () => $$('.col', board).forEach(col => {
       const cards = $$('.dcard', col);
       const total = cards.reduce((s, c) => s + parseFloat(c.dataset.value || 0), 0);
-      $('h3 small', col).textContent = `${cards.length} · ${money(total)}`;
+      $('h3 small', col).textContent = `${cards.length} · $${Math.round(total).toLocaleString('en-CA')}`;
     });
     // Open the first non-empty column on phones
     if (matchMedia('(max-width:820px)').matches) ($$('.col', board).find(c => $('.dcard', c)) || $('.col', board))?.classList.add('open');

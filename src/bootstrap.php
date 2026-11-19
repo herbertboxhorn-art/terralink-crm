@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.5.0';
-const SCHEMA_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
+const SCHEMA_VERSION = '1.6.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -166,6 +166,23 @@ function str_or_null(mixed $v): ?string { $v = is_string($v) ? trim($v) : $v; re
 
 // ---------- formatting ----------
 function money(mixed $n): string { return '$' . number_format((float)$n, 2); }
+/** Whole dollars for summaries/KPIs ($45,500), cents only when they matter */
+function money0(mixed $n): string { $n = (float)$n; return '$' . number_format($n, abs($n - round($n)) > 0.004 && abs($n) < 1000 ? 2 : 0); }
+/** Coloured initials dot for a user */
+function avatar(?string $name, mixed $id = 0, string $size = ''): string {
+    if (!$name) return '';
+    $parts = preg_split('/\s+/', trim($name));
+    $ini = mb_strtoupper(mb_substr($parts[0], 0, 1) . (count($parts) > 1 ? mb_substr(end($parts), 0, 1) : ''));
+    $hue = [24, 205, 150, 280, 340, 45, 190, 100][((int)$id) % 8];
+    return '<span class="av' . ($size ? " av-$size" : '') . '" style="--h:' . $hue . '" title="' . h($name) . '">' . h($ini) . '</span>';
+}
+/** Minutes as "45 min", "2 h" or "1 h 30 min" */
+function dur(int $m): string {
+    if ($m <= 0) return '—';
+    $h = intdiv($m, 60); $r = $m % 60;
+    return $h ? $h . ' h' . ($r ? " $r min" : '') : "$r min";
+}
+
 function fdate(?string $d, string $fmt = 'M j, Y'): string { return $d ? date($fmt, strtotime($d)) : ''; }
 function ago(?string $d): string {
     if (!$d) return '';
@@ -211,3 +228,4 @@ function json_out(mixed $data, int $code = 200): never {
 
 require __DIR__ . '/constants.php';
 require __DIR__ . '/forms.php';
+require __DIR__ . '/services.php';

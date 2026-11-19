@@ -1,5 +1,13 @@
 # TerraLink CRM changelog
 
+## 1.6.0 — 2026-11-19
+- **Look:** real TerraLink logo and app icons, login page in the website's style, light KPI cards (swipe strip on phones), owner avatars, **dark mode** (avatar menu → Theme)
+- **My day:** one page per person with their open tickets (site access notes, phone, map) and tasks due; techs land here after login
+- **Ticket response targets:** hours per priority in Settings (default 4 / 8 / 24 / 72); badges on tickets, an "Overdue" tab and a dashboard count
+- **Tickets:** one Update box (note + status + time, saved together); time shown as "1 h 30 min"
+- **Email:** forgot-password links and user invites (Users → Invite), sent through n8n; Settings shows recent emails and a test button
+- Fixes: deal form makes you pick service and source; "UniFi UniFi" labels; dollar totals without stray cents; assignee dropdown no longer cut off; timeline "Hide automatic updates"; Settings no longer blanks fields the form didn't send
+
 ## 1.5.0 — 2026-11-19
 - **Inventory:** equipment can be in stock without a site (location, supplier, purchase date, cost); Inventory page with Installed / In stock / Consumables tabs and stock value by category
 - **Receive stock:** bulk-add one model by pasting/scanning serials (or a quantity)

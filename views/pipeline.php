@@ -11,13 +11,13 @@
 <div class="board">
 <?php foreach (STAGES as $key => $label): $cards = $cols[$key]; $sum = array_sum(array_column($cards, 'value')); ?>
   <div class="col <?= $key ?>" data-stage="<?= $key ?>">
-    <h3><?= h($label) ?> <small><?= count($cards) ?> · <?= h(money($sum)) ?></small></h3>
+    <h3><?= h($label) ?> <small><?= count($cards) ?> · <?= h(money0($sum)) ?></small></h3>
     <div class="cards">
     <?php foreach ($cards as $d): ?>
       <a class="dcard src-<?= h($d['source']) ?>" href="/deals/<?= (int)$d['id'] ?>" draggable="true" data-id="<?= (int)$d['id'] ?>" data-value="<?= (float)$d['value'] ?>">
         <b><?= h($d['title']) ?></b>
-        <div class="meta"><span><?= h($d['company'] ?? '—') ?></span><span class="val"><?= $d['value'] > 0 ? h(money($d['value'])) : '' ?></span></div>
-        <div class="meta"><span><?= h($d['service']) ?></span><span><?= h(ago($d['stage_changed_at'])) ?></span></div>
+        <div class="meta"><span><?= h($d['company'] ?? '—') ?></span><span class="val"><?= $d['value'] > 0 ? h(money0($d['value'])) : '' ?></span></div>
+        <div class="meta"><span><?= h($d['service']) ?></span><span><?= avatar($d['owner'], $d['owner_id']) ?> <?= h(ago($d['stage_changed_at'])) ?></span></div>
       </a>
     <?php endforeach; ?>
     </div>

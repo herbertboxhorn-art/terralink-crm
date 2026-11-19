@@ -43,6 +43,14 @@ What it does:
 
 In workflow `rutWGq9RGBX48gKp`, add an HTTP Request node on the **callback** branch only, not careers.
 
+## 3b. Email from the CRM (n8n)
+The CRM sends email (password resets, invites, and later quotes and reminders) by POSTing to the n8n workflow **"TerraLink CRM — Outbound Email"** (`o3mNCWGnxXkihG8j`). That workflow sends through the SMTP TERRALINK credential.
+
+- **Webhook:** `https://terralinksystems.app.n8n.cloud/webhook/terralink-crm-mail`. You can change it in Settings.
+- **Auth:** the same `X-CRM-Key` header that the leads API uses.
+- **Body:** `{"messages":[{"to","subject","html","reply_to","attachment_b64","attachment_name","attachment_mime"}]}`.
+- **Log:** each send is recorded in **Settings → Recent emails**. Set `MAIL_MODE=log` in a local `.env` to write emails to `/tmp/crm-mail.log` instead of sending them.
+
 ## 4. Roles
 
 | Role  | Can do |

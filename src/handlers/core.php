@@ -6,20 +6,41 @@ function h_dashboard(): void {
         'title'        => 'Dashboard',
         'myTasks'      => all('SELECT t.*, c.name company FROM tasks t LEFT JOIN companies c ON c.id = t.company_id
                                WHERE t.done_at IS NULL AND t.assigned_to = ? ORDER BY t.due_date IS NULL, t.due_date LIMIT 12', [$me]),
-        'openTickets'  => all("SELECT t.*, c.name company FROM tickets t JOIN companies c ON c.id = t.company_id
+        'myTaskCount'  => (int)val('SELECT COUNT(*) FROM tasks WHERE done_at IS NULL AND assigned_to = ?', [$me]),
+        'openTickets'  => all("SELECT t.*, c.name company, u.name assignee FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN users u ON u.id = t.assigned_to
                                WHERE t.status <> 'closed' ORDER BY FIELD(t.priority,'urgent','high','normal','low'), t.created_at LIMIT 10"),
         'pipeline'     => array_column(all("SELECT stage, COUNT(*) n, COALESCE(SUM(value),0) v FROM deals GROUP BY stage"), null, 'stage'),
-        'newLeads'     => all("SELECT d.*, c.name company FROM deals d LEFT JOIN companies c ON c.id = d.company_id
+        'newLeads'     => all("SELECT d.*, c.name company, u.name owner FROM deals d LEFT JOIN users u ON u.id = d.owner_id LEFT JOIN companies c ON c.id = d.company_id
                                WHERE d.stage = 'new' ORDER BY d.created_at DESC LIMIT 6"),
         'warranty'     => all("SELECT e.*, s.name site, c.name company, c.id company_id FROM equipment e
                                JOIN sites s ON s.id = e.site_id JOIN companies c ON c.id = s.company_id
                                WHERE e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 60 DAY
                                ORDER BY e.warranty_until LIMIT 8"),
+        'slaOverdue'   => (int)val('SELECT COUNT(*) FROM tickets t WHERE ' . sla_overdue_sql('t')),
         'overdueCount' => (int)val('SELECT COUNT(*) FROM tasks WHERE done_at IS NULL AND due_date < CURDATE() AND assigned_to = ?', [$me]),
         'lowStock'     => all('SELECT id, name, unit, qty_on_hand, reorder_level FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level ORDER BY name LIMIT 8'),
         'travelUnset'  => (float)setting('travel_rate_per_km', '0') <= 0 && is_role('admin'),
     ];
     view('dashboard', $data);
+}
+
+/** My day: what I need to do today, with directions — built for the phone */
+function h_today(): void {
+    $me = uid();
+    $tasks = all('SELECT t.*, c.name company, d.title deal, tk.number ticket FROM tasks t LEFT JOIN companies c ON c.id = t.company_id
+                  LEFT JOIN deals d ON d.id = t.deal_id LEFT JOIN tickets tk ON tk.id = t.ticket_id
+                  WHERE t.done_at IS NULL AND t.assigned_to = ? AND (t.due_date IS NULL OR t.due_date <= CURDATE())
+                  ORDER BY t.due_date IS NULL, t.due_date', [$me]);
+    $tickets = all("SELECT t.*, c.name company, s.name site, s.address s_address, s.town s_town, s.latitude, s.longitude, s.access_notes,
+                           ct.first_name, ct.last_name, ct.phone ct_phone, ct.mobile ct_mobile
+                    FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id
+                    LEFT JOIN contacts ct ON ct.id = t.contact_id
+                    WHERE t.status <> 'closed' AND t.assigned_to = ?
+                    ORDER BY FIELD(t.priority,'urgent','high','normal','low'), t.created_at", [$me]);
+    $upcoming = all('SELECT t.*, c.name company FROM tasks t LEFT JOIN companies c ON c.id = t.company_id
+                     WHERE t.done_at IS NULL AND t.assigned_to = ? AND t.due_date > CURDATE() AND t.due_date <= CURDATE() + INTERVAL 7 DAY
+                     ORDER BY t.due_date LIMIT 10', [$me]);
+    view('today', ['title' => 'My day', 'tasks' => $tasks, 'tickets' => $tickets, 'upcoming' => $upcoming]);
 }
 
 function h_search(): void {

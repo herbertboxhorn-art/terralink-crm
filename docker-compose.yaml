@@ -1,0 +1,105 @@
+# TerraLink CRM — production stack for the Hostinger VPS (Traefik in host mode, resolver "letsencrypt")
+# Deploy as Docker project name: terralink-crm  (the Traefik network label depends on it)
+# Secrets (DB passwords, API key) are generated ON THE SERVER at first start and kept in the crm-secrets volume.
+x-common-env: &tz
+  TZ: America/Vancouver
+
+services:
+  secrets:
+    image: mysql:8.4
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        umask 077; cd /run/crm
+        for f in db_pass db_root_pass api_key; do
+          [ -s "$$f" ] || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$$f"
+        done
+        chmod 444 db_pass db_root_pass api_key; echo "secrets ready"
+    volumes:
+      - crm-secrets:/run/crm
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+    environment:
+      <<: *tz
+      MYSQL_DATABASE: terralink_crm
+      MYSQL_USER: crm
+      MYSQL_PASSWORD_FILE: /run/crm/db_pass
+      MYSQL_ROOT_PASSWORD_FILE: /run/crm/db_root_pass
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=512M"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$(cat /run/crm/db_root_pass)\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - crm-secrets:/run/crm:ro
+
+  app:
+    image: terralink-crm:latest
+    build:
+      # Built straight from this GitHub repo (master). For local builds see docker-compose.local.yml.
+      context: https://github.com/herbertboxhorn-art/terralink-crm.git#master
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *tz
+      APP_ENV: production
+      APP_URL: https://crm.terralinksystems.com
+      APP_TZ: America/Vancouver
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: terralink_crm
+      DB_USER: crm
+      DB_PASS_FILE: /run/crm/db_pass
+      CRM_API_KEY_FILE: /run/crm/api_key
+    volumes:
+      - crm-secrets:/run/crm:ro
+    expose:
+      - "80"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=terralink-crm_default
+      - traefik.http.routers.terralink-crm.rule=Host(`crm.terralinksystems.com`)
+      - traefik.http.routers.terralink-crm.entrypoints=websecure
+      - traefik.http.routers.terralink-crm.tls.certresolver=letsencrypt
+      - traefik.http.services.terralink-crm.loadbalancer.server.port=80
+
+  backup:
+    image: mysql:8.4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *tz
+    volumes:
+      - crm-backups:/backups
+      - crm-secrets:/run/crm:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export MYSQL_PWD="$$(cat /run/crm/db_root_pass)"
+        echo "backup service running (daily 02:30, keeps 14 days)"
+        while true; do
+          if [ "$$(date +%H%M)" = "0230" ]; then
+            f=/backups/crm-$$(date +%F).sql.gz
+            if mysqldump -h db -u root --single-transaction --routines --no-tablespaces terralink_crm | gzip > "$$f.tmp"; then mv "$$f.tmp" "$$f"; echo "backup ok $$f"; else echo "BACKUP FAILED"; fi
+            find /backups -name 'crm-*.sql.gz' -mtime +14 -delete
+            sleep 61
+          fi
+          sleep 30
+        done
+
+volumes:
+  mysql-data:
+  crm-secrets:
+  crm-backups:

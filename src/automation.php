@@ -21,8 +21,8 @@ function plan_create_ticket(array $p, ?int $byUser = null): int {
     $number = next_number('ticket');
     $desc = trim("Scheduled visit from service plan \"{$p['title']}\" (" . (PLAN_EVERY[(int)$p['every_months']] ?? $p['every_months'] . ' months') . ").\nDue: " . date('D M j, Y', strtotime($due))
         . ($p['description'] ? "\n\n" . $p['description'] : ''));
-    q("INSERT INTO tickets (number, company_id, site_id, plan_id, subject, description, priority, status, assigned_to, created_by, first_response_at)
-       VALUES (?,?,?,?,?,?,?, 'open', ?, ?, NOW())",
+    q("INSERT INTO tickets (number, company_id, site_id, plan_id, subject, description, priority, status, assigned_to, created_by, first_response_at, billing)
+       VALUES (?,?,?,?,?,?,?, 'open', ?, ?, NOW(), 'no_charge')",
       [$number, $p['company_id'], $p['site_id'], $p['id'], mb_substr($p['title'] . ' — due ' . date('M j', strtotime($due)), 0, 190), $desc,
        $p['priority'], $p['assigned_to'], $byUser ?? $p['created_by']]);
     $tid = (int)db()->lastInsertId();

@@ -89,6 +89,13 @@ $routes = [
     ['GET|POST', '/tickets/(\d+)/edit', 'h_ticket_form'],
     ['POST', '/tickets/(\d+)/update', 'h_ticket_update'],
     ['POST', '/tickets/(\d+)/delete', 'h_ticket_delete'],
+    ['POST', '/tickets/(\d+)/charges', 'h_ticket_charge_add'],
+    ['POST', '/tickets/(\d+)/charges/time', 'h_ticket_charge_time'],
+    ['POST', '/tickets/(\d+)/charges/(\d+)/delete', 'h_ticket_charge_delete'],
+    ['POST', '/tickets/(\d+)/billing', 'h_ticket_billing'],
+    ['GET', '/tickets/(\d+)/summary', 'h_ticket_summary'],
+    ['GET', '/billing', 'h_billing'],
+    ['POST', '/billing/mark', 'h_billing_mark'],
 
     ['GET', '/quotes', 'h_quotes'],
     ['GET|POST', '/quotes/new', 'h_quote_form'],

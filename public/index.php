@@ -26,6 +26,8 @@ start_session();
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
+header('Permissions-Policy: camera=(self), microphone=(), geolocation=(self)');
+if (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') header('Strict-Transport-Security: max-age=31536000');
 
 foreach (glob(APP_ROOT . '/src/handlers/*.php') as $f) if (!str_ends_with($f, 'api.php')) require $f;
 
@@ -160,6 +162,8 @@ $routes = [
     ['POST', '/portal-users/(\d+)/invite', 'h_portal_user_invite'],
     ['POST', '/portal-users/(\d+)/delete', 'h_portal_user_delete'],
 
+    ['GET', '/errors', 'h_errors'],
+    ['POST', '/errors/clear', 'h_errors_clear'],
     ['GET', '/data', 'h_data'],
     ['GET', '/data/export/([a-z]+)', 'h_data_export'],
     ['GET', '/data/template', 'h_data_template'],

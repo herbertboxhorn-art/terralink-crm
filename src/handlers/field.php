@@ -124,7 +124,7 @@ function h_equipment_form(int $id = 0): void {
     }
     view('form', ['title' => ($id ? 'Edit equipment' : ($inStock ? 'Add to stock' : 'Add equipment')) . ($site ? ' — ' . $site['name'] : ''),
         'def' => $def, 'row' => $row, 'errors' => $errors,
-        'cancel' => $site ? "/sites/$siteId" : '/equipment?tab=stock', 'deleteUrl' => $id ? "/equipment/$id/delete" : null,
+        'cancel' => $site ? "/sites/$siteId" : '/equipment?tab=stock', 'deleteUrl' => ($id && is_role('admin')) ? "/equipment/$id/delete" : null,
         'subtitle' => $site ? $site['company'] . ' · ' . $site['name'] : 'In stock — not at any site yet',
         'files' => $id ? ['equipment', $id] : null,
         'extraActions' => $id ? ($inStock
@@ -238,6 +238,7 @@ function h_site_add_equipment(int $id): void {
 }
 
 function h_equipment_delete(int $id): void {
+    require_role('admin');
     $sid = val('SELECT site_id FROM equipment WHERE id = ?', [$id]);
     q('DELETE FROM equipment WHERE id = ?', [$id]);
     flash('Equipment deleted.');
@@ -252,13 +253,15 @@ function h_tickets(): void {
         'mine'   => "t.status <> 'closed' AND t.assigned_to = " . (int)uid(),
         'overdue'=> sla_overdue_sql('t'),
         'closed' => "t.status = 'closed'",
+        'client' => "t.status <> 'closed' AND t.client_waiting_at IS NOT NULL",
         'all'    => '1=1',
         default  => "t.status <> 'closed'",
     };
     $rows = all("SELECT t.*, c.name company, s.name site, u.name assignee, u.id assignee_uid FROM tickets t
                  JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id LEFT JOIN users u ON u.id = t.assigned_to
                  WHERE $w ORDER BY t.status = 'closed', FIELD(t.priority,'urgent','high','normal','low'), t.created_at DESC LIMIT 300");
-    view('tickets', ['title' => 'Tickets', 'rows' => $rows, 'f' => $f]);
+    view('tickets', ['title' => 'Tickets', 'rows' => $rows, 'f' => $f,
+        'clientWaiting' => (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed' AND client_waiting_at IS NOT NULL")]);
 }
 
 function h_ticket_form(int $id = 0): void {
@@ -286,7 +289,8 @@ function h_ticket_form(int $id = 0): void {
             }
             $newId = save_entity($def + ['table' => 'tickets'], $vals, $id ?: null);
             if (!$id) log_activity('system', 'ticket', $newId, "Ticket {$vals['number']} opened: {$vals['subject']}", $vals['company_id']);
-            elseif (($row['status'] ?? '') !== $vals['status']) { log_activity('stage', 'ticket', $newId, 'Status: ' . TICKET_STATUS[$row['status']] . ' → ' . TICKET_STATUS[$vals['status']], $vals['company_id']); ticket_responded($newId); }
+            elseif (($row['status'] ?? '') !== $vals['status']) { log_activity('stage', 'ticket', $newId, 'Status: ' . TICKET_STATUS[$row['status']] . ' → ' . TICKET_STATUS[$vals['status']], $vals['company_id']); ticket_responded($newId); ticket_client_answered($newId);
+                if ($vals['status'] === 'closed') portal_notify_closed(one('SELECT * FROM tickets WHERE id = ?', [$newId])); }
             flash($id ? 'Ticket saved.' : 'Ticket opened.');
             redirect("/tickets/$newId");
         }
@@ -341,11 +345,15 @@ function h_ticket_update(int $id): void {
     if ($parts || $client) {
         if ($parts) log_activity($status !== $t['status'] && $note === '' ? 'stage' : $kind, 'ticket', $id, implode(' · ', $parts), (int)$t['company_id']);
         ticket_responded($id);
+        if ($client || $status !== $t['status']) ticket_client_answered($id);
+        $closedMail = 0;
+        if ($status === 'closed' && $t['status'] !== 'closed' && !$client) $closedMail = portal_notify_closed($t);
         $msg = 'Ticket updated.';
         if ($client) {
             $n = portal_notify_client($t, (string)post('note', ''), $status !== $t['status'] ? $status : null);
             $msg = $n ? "Reply sent to the client ($n email" . ($n === 1 ? '' : 's') . ').' : 'Reply posted in the client portal. Nobody was emailed: no portal login opened this ticket or is its contact.';
         }
+        if ($closedMail) $msg .= " The client was emailed that it's resolved.";
         flash($msg);
     } else {
         flash('Nothing to save: change the status, add time, or write a note.', 'warn');

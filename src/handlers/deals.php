@@ -37,7 +37,7 @@ function h_deal_form(int $id = 0): void {
         $row = $vals;
     }
     view('form', ['title' => $id ? 'Edit deal' : 'New deal', 'def' => $def, 'row' => $row, 'errors' => $errors,
-        'cancel' => $id ? "/deals/$id" : '/pipeline', 'deleteUrl' => $id ? "/deals/$id/delete" : null, 'dependent' => true]);
+        'cancel' => $id ? "/deals/$id" : '/pipeline', 'deleteUrl' => ($id && is_role('admin')) ? "/deals/$id/delete" : null, 'dependent' => true]);
 }
 
 function h_deal_show(int $id): void {
@@ -70,6 +70,7 @@ function h_deal_stage(int $id): void {
 }
 
 function h_deal_delete(int $id): void {
+    require_role('admin');
     q("DELETE FROM activities WHERE entity_type = 'deal' AND entity_id = ?", [$id]);
     q('DELETE FROM deals WHERE id = ?', [$id]);
     flash('Deal deleted.');

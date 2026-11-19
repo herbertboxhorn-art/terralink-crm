@@ -60,7 +60,10 @@ function daily_digest(array $u): ?array {
                WHERE q.status = 'sent' AND q.valid_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 3 DAY ORDER BY q.valid_until") : [];
     $low = $u['role'] === 'admin'
         ? all('SELECT name, qty_on_hand, unit, reorder_level FROM consumables WHERE active = 1 AND reorder_level > 0 AND qty_on_hand <= reorder_level ORDER BY name') : [];
-    if (!$tasks && !$tickets && !$leads && !$quotes && !$low) return null;
+    $errs = $u['role'] === 'admin' ? (int)val('SELECT COUNT(*) FROM app_errors WHERE last_at > NOW() - INTERVAL 1 DAY') : 0;
+    $unassigned = $u['role'] === 'admin' ? all("SELECT t.*, c.name company FROM tickets t JOIN companies c ON c.id = t.company_id
+                   WHERE t.status <> 'closed' AND t.assigned_to IS NULL AND t.client_waiting_at IS NOT NULL ORDER BY t.client_waiting_at LIMIT 15") : [];
+    if (!$tasks && !$tickets && !$leads && !$quotes && !$low && !$errs && !$unassigned) return null;
 
     $li = fn(string $s) => '<li style="margin:0 0 6px">' . $s . '</li>';
     $sec = fn(string $title, array $items) => $items ? '<h3 style="font-size:16px;margin:20px 0 8px;color:#0F1A24">' . h($title) . '</h3><ul style="padding-left:18px;margin:0">' . implode('', $items) . '</ul>' : '';
@@ -70,8 +73,11 @@ function daily_digest(array $u): ?array {
         $sla = sla_state($t);
         return $li('<a href="' . h(app_url('/tickets/' . $t['id'])) . '">' . h($t['number'] . ' · ' . $t['subject']) . '</a> — ' . h($t['company'] . ($t['site'] ? ' · ' . $t['site'] : ''))
             . ($t['priority'] === 'urgent' || $t['priority'] === 'high' ? ' · ' . h(TICKET_PRIORITY[$t['priority']]) : '')
-            . ($sla && $sla['overdue'] ? ' · ' . $red(h($sla['label'])) : ''));
+            . ($sla && $sla['overdue'] ? ' · ' . $red(h($sla['label'])) : '')
+            . (!empty($t['client_waiting_at']) ? ' · ' . $red('client waiting for a reply') : ''));
     }, $tickets));
+    $html .= $sec('Clients waiting on unassigned tickets', array_map(fn($t) => $li('<a href="' . h(app_url('/tickets/' . $t['id'])) . '">' . h($t['number'] . ' · ' . $t['subject']) . '</a> — ' . h($t['company']) . ' · since ' . h(ago($t['client_waiting_at']))), $unassigned));
+    if ($errs) $html .= '<p style="margin:16px 0 0"><b style="color:#C62828">' . $errs . ' app error' . ($errs === 1 ? '' : 's') . '</b> in the last 24 hours. <a href="' . h(app_url('/errors')) . '">Open the error log</a>.</p>';
     $html .= $sec('Tasks due', array_map(fn($t) => $li(h($t['title']) . ($t['company'] ? ' — ' . h($t['company']) : '') . ' · '
         . ($t['due_date'] < $today ? $red('overdue since ' . h(date('M j', strtotime($t['due_date'])))) : 'today')), $tasks));
     $html .= $sec('New leads (last 24 h)', array_map(fn($d) => $li(h($d['title']) . ($d['company'] ? ' — ' . h($d['company']) : '')), $leads));
@@ -86,6 +92,8 @@ function daily_digest(array $u): ?array {
     if ($leads) $bits[] = count($leads) . ' new lead' . (count($leads) === 1 ? '' : 's');
     if (!$bits && $quotes) $bits[] = 'quotes expiring';
     if (!$bits && $low) $bits[] = 'low stock';
+    if ($unassigned) array_unshift($bits, count($unassigned) . ' client' . (count($unassigned) === 1 ? '' : 's') . ' waiting');
+    if (!$bits && $errs) $bits[] = 'app errors';
     return ['to' => $u['email'], 'subject' => 'Your day, ' . date('D M j') . ': ' . implode(', ', $bits), 'html' => $html];
 }
 
@@ -98,6 +106,7 @@ function cron_daily(bool $force = false, bool $send = true): array {
     // Month-end invoicing: on the first run of a new month, build draft invoices and tell Herb
     foreach (['quotes', 'inventory', 'field', 'charges', 'invoices'] as $h) require_once APP_ROOT . "/src/handlers/$h.php";
     $inv = invoices_monthly($send);
+    $reminders = invoices_send_reminders($send);
     $mails = [];
     foreach (all("SELECT * FROM users WHERE active = 1 AND daily_email = 1 AND email <> ''") as $u) {
         $m = daily_digest($u);
@@ -106,5 +115,7 @@ function cron_daily(bool $force = false, bool $send = true): array {
     $sent = ($send && $mails) ? mail_send($mails) : null;
     // old one-time links are useless after a day
     q('DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');
-    return ['ok' => true, 'date' => $today, 'plan_tickets' => count($made), 'emails' => count($mails), 'mail_ok' => $sent, 'invoices' => $inv];
+    q('DELETE FROM portal_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');
+    q('DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL 1 DAY');
+    return ['ok' => true, 'date' => $today, 'plan_tickets' => count($made), 'emails' => count($mails), 'mail_ok' => $sent, 'invoices' => $inv, 'reminders' => count($reminders)];
 }

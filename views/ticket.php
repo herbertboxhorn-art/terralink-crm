@@ -5,7 +5,7 @@
     <h1><?= h($t['subject']) ?></h1>
     <div class="sub"><span class="mono"><?= h($t['number']) ?></span>
       <span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span>
-      <span class="pill <?= h($t['priority']) ?>"><?= h(TICKET_PRIORITY[$t['priority']]) ?></span> <?= sla_badge($t) ?>
+      <span class="pill <?= h($t['priority']) ?>"><?= h(TICKET_PRIORITY[$t['priority']]) ?></span> <?= sla_badge($t) ?> <?= client_waiting_badge($t) ?>
       <a href="/companies/<?= (int)$t['company_id'] ?>"><?= h($t['company']) ?></a>
       <?php if ($t['site_id']): ?><a href="/sites/<?= (int)$t['site_id'] ?>"><?= h($t['site']) ?></a><?php endif; ?></div>
   </div>
@@ -19,7 +19,7 @@
       <form method="post" action="/tickets/<?= $id ?>/update" class="inline" style="margin-top:10px"><?= csrf_field() ?>
         <textarea name="note" rows="3" placeholder="What was done, what's next, or what the client said…"></textarea>
         <?php $watchers = portal_ticket_watchers($t); $anyPortal = (int)val('SELECT COUNT(*) FROM portal_users WHERE company_id = ? AND active = 1 AND perm_tickets = 1', [$t['company_id']]); ?>
-        <?php if ($anyPortal): ?><label class="muted" style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="client" value="1" style="width:auto"<?= !empty($t['portal_user_id']) ? ' checked' : '' ?>>
+        <?php if ($anyPortal): ?><label class="muted" style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="client" value="1" style="width:auto">
           Reply to client: show in the portal<?= $watchers ? ' and email ' . h(implode(', ', array_column($watchers, 'name'))) : '' ?></label><?php endif; ?>
         <div class="row">
           <select name="type" aria-label="Kind"><?php foreach (ACTIVITY_TYPES as $k => $l): ?><option value="<?= $k ?>"><?= $l ?></option><?php endforeach; ?></select>

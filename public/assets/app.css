@@ -353,3 +353,4 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .portal .sidenav .co small{display:block;color:#7f97aa;font:500 12px Inter}
 .warr-ok{color:var(--ok)} .warr-soon{color:var(--warn);font-weight:600} .warr-out{color:var(--muted)}
 .pay{white-space:pre-wrap}
+.sidenav em.cw{background:#3D8BFD;color:#fff}

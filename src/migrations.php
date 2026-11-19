@@ -341,6 +341,39 @@ function migrations(): array {
             if (!col_exists('quotes', 'client_decision_at')) db()->exec('ALTER TABLE quotes ADD COLUMN client_decision_at DATETIME NULL AFTER notes');
             if (!col_exists('quotes', 'client_decision_by')) db()->exec('ALTER TABLE quotes ADD COLUMN client_decision_by VARCHAR(190) NULL AFTER client_decision_at');
         },
+        // 1.15.0 — audit: client-waiting flag, invoice reminders, site-restricted portal logins, error log
+        '1.15.0' => function (): void {
+            if (!col_exists('tickets', 'client_waiting_at')) db()->exec('ALTER TABLE tickets ADD COLUMN client_waiting_at DATETIME NULL AFTER portal_user_id, ADD INDEX idx_ticket_waiting (client_waiting_at)');
+            // existing portal tickets where the client spoke last
+            db()->exec("UPDATE tickets t SET client_waiting_at = (SELECT MAX(a.created_at) FROM activities a WHERE a.entity_type = 'ticket' AND a.entity_id = t.id AND a.portal_user_id IS NOT NULL)
+                        WHERE t.status <> 'closed' AND t.client_waiting_at IS NULL AND t.portal_user_id IS NOT NULL AND t.first_response_at IS NULL");
+            if (!col_exists('invoices', 'reminder_count')) db()->exec('ALTER TABLE invoices ADD COLUMN reminder_count TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER sent_to, ADD COLUMN reminded_at DATETIME NULL AFTER reminder_count');
+            if (!col_exists('companies', 'invoice_reminders')) db()->exec('ALTER TABLE companies ADD COLUMN invoice_reminders TINYINT(1) NOT NULL DEFAULT 1 AFTER billing_email');
+            if (!table_exists('portal_user_sites')) db()->exec("CREATE TABLE portal_user_sites (
+                portal_user_id INT UNSIGNED NOT NULL,
+                site_id INT UNSIGNED NOT NULL,
+                PRIMARY KEY (portal_user_id, site_id),
+                CONSTRAINT fk_pus_user FOREIGN KEY (portal_user_id) REFERENCES portal_users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_pus_site FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!table_exists('app_errors')) db()->exec("CREATE TABLE app_errors (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                fingerprint CHAR(40) NOT NULL,
+                message VARCHAR(1000) NOT NULL,
+                file VARCHAR(255) NULL,
+                line INT UNSIGNED NULL,
+                trace TEXT NULL,
+                method VARCHAR(10) NULL,
+                url VARCHAR(500) NULL,
+                who VARCHAR(190) NULL,
+                hits INT UNSIGNED NOT NULL DEFAULT 1,
+                first_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_err_fp (fingerprint),
+                INDEX idx_err_last (last_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            q("INSERT IGNORE INTO settings (k, v) VALUES ('invoice_reminders', '1'), ('portal_assignee', '')");
+        },
     ];
 }
 

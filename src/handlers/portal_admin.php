@@ -35,8 +35,11 @@ function h_portal_user_edit(int $id): void {
         $pu = array_merge($pu, array_intersect_key($_POST, array_flip(['name', 'email', 'contact_id'])));
         foreach (PORTAL_ALL_PERMS as $p) $pu[$p] = !empty($_POST[$p]) ? 1 : 0;
         $pu['active'] = !empty($_POST['active']) ? 1 : 0;
+        $pu['site_ids'] = array_map('intval', (array)($_POST['site_ids'] ?? []));
     }
+    $pu['site_ids'] ??= portal_site_ids($pu) ?? [];
     view('portal_user_form', ['title' => 'Portal login — ' . $pu['name'], 'pu' => $pu, 'errors' => $errors,
+        'siteList' => all('SELECT id, name FROM sites WHERE company_id = ? ORDER BY name', [(int)$pu['company_id']]),
         'contacts' => contact_opts((int)$pu['company_id'])]);
 }
 

@@ -8,7 +8,7 @@
   <div class="actions">
     <a class="btn primary" href="/deals/new?company_id=<?= $id ?>">+ Deal</a>
     <a class="btn" href="/tickets/new?company_id=<?= $id ?>">+ Ticket</a>
-    <a class="btn" href="/quotes/new?company_id=<?= $id ?>">+ Quote</a>
+    <?php if (!is_role('tech')): ?><a class="btn" href="/quotes/new?company_id=<?= $id ?>">+ Quote</a><?php endif; ?>
     <a class="btn" href="/companies/<?= $id ?>/edit">Edit</a>
   </div>
 </div>
@@ -25,7 +25,7 @@
   <a href="#deals">Deals <span><?= count($deals) ?></span></a>
   <a href="#sites">Sites &amp; gear <span><?= count($sites) ?></span></a>
   <a href="#tickets">Tickets <span><?= count($tickets) ?></span></a>
-  <a href="#quotes">Quotes <span><?= count($quotes) ?></span></a>
+  <?php if (!is_role('tech')): ?><a href="#quotes">Quotes <span><?= count($quotes) ?></span></a><?php endif; ?>
   <a href="#portal">Client portal <span><?= count(array_filter($portalUsers, fn($p) => $p['active'])) ?></span></a>
 </nav>
 
@@ -107,7 +107,7 @@
   </div>
 </section>
 
-<section data-tabpanel="quotes">
+<?php if (!is_role('tech')): ?><section data-tabpanel="quotes">
   <div class="card">
     <div class="cardhead"><h2>Quotes</h2><a class="btn sm" href="/quotes/new?company_id=<?= $id ?>">+ Quote</a></div>
     <?php if (!$quotes): ?><div class="empty">No quotes.</div><?php else: ?>
@@ -117,7 +117,7 @@
         <b><?= h(money($qt['subtotal'])) ?></b></li>
     <?php endforeach; ?></ul><?php endif; ?>
   </div>
-</section>
+</section><?php endif; ?>
 
 <section data-tabpanel="portal">
   <div class="grid side">
@@ -143,7 +143,7 @@
         <div class="field"><label>Access</label><select name="preset" data-preset>
           <?php foreach (PORTAL_PRESETS as $k => $p): ?><option value="<?= $k ?>" data-perms="<?= h(implode(',', $p['perms'])) ?>"><?= h($p['label']) ?></option><?php endforeach; ?>
           <option value="">Custom (tick below)</option></select></div>
-        <details><summary class="muted" style="cursor:pointer">Custom permissions</summary><?php $pp = ['perm_tickets' => 1]; $grantable = null; require __DIR__ . '/_portal_perms.php'; ?></details>
+        <details><summary class="muted" style="cursor:pointer">Custom permissions &amp; site limits</summary><?php $pp = ['perm_tickets' => 1]; $grantable = null; $siteList = $sites; $siteLimit = null; require __DIR__ . '/_portal_perms.php'; ?></details>
         <div class="field check"><label><input type="checkbox" name="invite" value="1" checked> Email them an invite now</label></div>
         <button class="btn primary" type="submit">Add login</button>
       </form>

@@ -16,7 +16,7 @@
       <h3><a href="/tickets/<?= (int)$t['id'] ?>"><?= h($t['subject']) ?></a></h3>
       <span class="pill <?= h($t['priority']) ?>"><?= h(TICKET_PRIORITY[$t['priority']]) ?></span>
     </div>
-    <div class="muted" style="font-size:14px"><span class="mono"><?= h($t['number']) ?></span> · <?= h($t['company']) ?><?= $t['site'] ? ' · ' . h($t['site']) : '' ?> · <span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span> <?= sla_badge($t) ?></div>
+    <div class="muted" style="font-size:14px"><span class="mono"><?= h($t['number']) ?></span> · <?= h($t['company']) ?><?= $t['site'] ? ' · ' . h($t['site']) : '' ?> · <span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span> <?= sla_badge($t) ?> <?= client_waiting_badge($t) ?></div>
     <?php if ($t['access_notes']): ?><div class="access"><b>Access:</b> <?= h($t['access_notes']) ?></div><?php endif; ?>
     <div class="quick" style="margin-top:10px">
       <?php if ($addr || $t['latitude']): ?><a href="https://maps.google.com/?q=<?= rawurlencode($t['latitude'] && $t['longitude'] ? $t['latitude'] . ',' . $t['longitude'] : $addr) ?>" target="_blank" rel="noopener"><svg class="i"><use href="/assets/icons.svg#pin"/></svg>Directions</a><?php endif; ?>

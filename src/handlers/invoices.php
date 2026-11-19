@@ -295,7 +295,9 @@ function invoice_approve_send(int $id): array {
         . h(fdate($inv['due_on'], 'F j, Y')) . '</b>.</p><p><b>How to pay</b><br>Interac e-Transfer to <b>' . h($pay) . '</b> (please put ' . h($inv['number']) . ' in the message)'
         . (setting('eft_details') ? '<br>EFT / direct deposit: ' . nl2br(h(setting('eft_details')), false) : '<br>EFT / direct deposit: reply to this email for our banking details')
         . (setting('cc_details') ? '<br>Credit card: ' . nl2br(h(setting('cc_details')), false) : '<br>Credit card: call us at ' . h(setting('company_phone')))
-        . '<br>We don\'t accept cheques.</p><p>Thank you for your business.<br>' . h($co) . (setting('company_phone') ? ' · ' . h(setting('company_phone')) : '') . '</p>';
+        . '<br>We don\'t accept cheques.</p>'
+        . (portal_company_has((int)$inv['company_id'], 'perm_invoices') ? mail_button(portal_url('/invoices'), 'View your invoices in the portal') : '')
+        . '<p>Thank you for your business.<br>' . h($co) . (setting('company_phone') ? ' · ' . h(setting('company_phone')) : '') . '</p>';
     $ok = mail_send([['to' => $to, 'subject' => "Invoice {$inv['number']} from $co — due " . fdate($inv['due_on'], 'M j'), 'html' => $html,
         'reply_to' => setting('payment_email') ?: (user()['email'] ?? ''), 'attachment' => ['name' => $fname, 'mime' => 'application/pdf', 'data' => $bytes]]]);
     if (!$ok) {
@@ -389,4 +391,46 @@ function h_invoice_pdf(int $id): void {
     header('Content-Type: application/pdf');
     header('Content-Disposition: ' . (get('dl') ? 'attachment' : 'inline') . '; filename="' . $fname . '"');
     echo $bytes;
+}
+
+// ---------- overdue reminders (v1.15) ----------
+/** Daily: first reminder 3 days past due, second at 14 days. Herb gets one summary. Returns the invoice numbers reminded. */
+function invoices_send_reminders(bool $send = true): array {
+    if (setting('invoice_reminders', '1') !== '1') return [];
+    $rows = all("SELECT i.* FROM invoices i JOIN companies c ON c.id = i.company_id
+                 WHERE i.status IN ('approved','sent') AND c.invoice_reminders = 1 AND i.due_on IS NOT NULL AND i.number IS NOT NULL
+                   AND IFNULL(i.bill_to_email, '') <> '' AND (i.reminded_at IS NULL OR i.reminded_at < NOW() - INTERVAL 5 DAY)
+                   AND ((i.reminder_count = 0 AND i.due_on <= CURDATE() - INTERVAL 3 DAY) OR (i.reminder_count = 1 AND i.due_on <= CURDATE() - INTERVAL 14 DAY))
+                 ORDER BY i.due_on LIMIT 50");
+    $co = setting('company_name', 'TerraLink Systems');
+    $pay = setting('payment_email', 'payment@terralinksystems.com');
+    $done = [];
+    foreach ($rows as $r) {
+        [$inv] = load_invoice((int)$r['id']);
+        $days = (int)floor((strtotime(date('Y-m-d')) - strtotime($inv['due_on'])) / 86400);
+        $second = (int)$inv['reminder_count'] >= 1;
+        $html = '<p>Hello,</p><p>' . ($second ? 'This is a second reminder: invoice' : 'A friendly reminder that invoice') . ' <b>' . h($inv['number']) . '</b> for <b>' . h(money($inv['total'])) . ' CAD</b> was due on <b>'
+            . h(fdate($inv['due_on'], 'F j, Y')) . "</b> ($days days ago). If you've already paid, thank you, and please ignore this email.</p>"
+            . '<p><b>How to pay</b><br>Interac e-Transfer to <b>' . h($pay) . '</b> (please put ' . h($inv['number']) . ' in the message)'
+            . (setting('eft_details') ? '<br>EFT / direct deposit: ' . nl2br(h(setting('eft_details')), false) : '')
+            . (setting('cc_details') ? '<br>Credit card: ' . nl2br(h(setting('cc_details')), false) : '<br>Credit card: call us at ' . h(setting('company_phone'))) . '</p>'
+            . (portal_company_has((int)$inv['company_id'], 'perm_invoices') ? mail_button(portal_url('/invoices'), 'View your invoices in the portal') : '')
+            . '<p>Questions about this invoice? Just reply to this email.<br>' . h($co) . (setting('company_phone') ? ' · ' . h(setting('company_phone')) : '') . '</p>';
+        $ok = !$send;
+        if ($send) {
+            [$bytes, $fname] = invoice_pdf((int)$inv['id']);
+            $ok = mail_send([['to' => $inv['bill_to_email'], 'subject' => ($second ? 'Second reminder' : 'Reminder') . ": invoice {$inv['number']} from $co was due " . fdate($inv['due_on'], 'M j'),
+                'html' => $html, 'reply_to' => $pay, 'attachment' => ['name' => $fname, 'mime' => 'application/pdf', 'data' => $bytes]]]);
+        }
+        if (!$ok) { inv_log((int)$inv['id'], (int)$inv['company_id'], 'Overdue reminder email failed'); continue; }
+        q('UPDATE invoices SET reminder_count = reminder_count + 1, reminded_at = NOW() WHERE id = ?', [$inv['id']]);
+        inv_log((int)$inv['id'], (int)$inv['company_id'], ($second ? 'Second' : 'First') . " overdue reminder emailed to {$inv['bill_to_email']} ($days days late)");
+        $done[] = $inv['number'] . ' · ' . $inv['company'] . ' · ' . money($inv['total']) . " · $days days late" . ($second ? ' (2nd)' : '');
+    }
+    if ($done && $send) {
+        $to = setting('invoice_review_email') ?: (string)val("SELECT email FROM users WHERE role = 'admin' AND active = 1 ORDER BY id LIMIT 1");
+        if ($to) mail_send([['to' => $to, 'subject' => 'Overdue reminders sent: ' . count($done),
+            'html' => '<p>These overdue reminders went out this morning:</p><ul><li>' . implode('</li><li>', array_map('h', $done)) . '</li></ul>' . mail_button(app_url('/invoices?f=overdue'), 'Open overdue invoices')]]);
+    }
+    return $done;
 }

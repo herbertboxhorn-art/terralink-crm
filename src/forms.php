@@ -52,6 +52,7 @@ function entity_def_raw(string $name, array $ctx = []): array {
             'province' => ['Province', 'text', 'default' => 'BC'],
             'owner_id' => ['Account owner', 'select', 'options' => user_opts(), 'int' => true],
             'billing_email' => ['Billing email (invoices go here)', 'email', 'placeholder' => 'Leave empty to use the company email'],
+            'invoice_reminders' => ['Send overdue invoice reminders to this company', 'checkbox', 'default' => 1],
             'payment_terms_days' => ['Payment terms in days (empty = standard ' . setting('invoice_terms_days', '15') . ')', 'number', 'int' => true],
             'notes'    => ['Notes', 'textarea'],
         ]],

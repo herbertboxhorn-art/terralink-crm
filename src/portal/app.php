@@ -15,6 +15,8 @@ function portal_dispatch(string $method, string $path): void {
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: same-origin');
     header('X-Robots-Tag: noindex');
+    header('Permissions-Policy: camera=(self), microphone=(), geolocation=()');
+    if (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') header('Strict-Transport-Security: max-age=31536000');
 
     // [methods, regex, handler, permission|null|'public']
     $routes = [
@@ -196,13 +198,13 @@ function p_home(): void {
         $d['waiting'] = (int)val("SELECT COUNT(*) FROM tickets t WHERE $w AND t.status = 'waiting'", $p);
         $d['recent'] = all("SELECT t.*, s.name site FROM tickets t LEFT JOIN sites s ON s.id = t.site_id WHERE $w ORDER BY t.status = 'closed', t.updated_at DESC LIMIT 6", $p);
     }
-    if (portal_can('perm_plans')) $d['nextVisit'] = one('SELECT sp.*, s.name site FROM service_plans sp LEFT JOIN sites s ON s.id = sp.site_id WHERE sp.company_id = ? AND sp.active = 1 ORDER BY sp.next_due LIMIT 1', [$cid]);
+    if (portal_can('perm_plans')) $d['nextVisit'] = one('SELECT sp.*, s.name site FROM service_plans sp LEFT JOIN sites s ON s.id = sp.site_id WHERE sp.company_id = ? AND sp.active = 1' . portal_site_sql($pu, 'sp.site_id') . ' ORDER BY sp.next_due LIMIT 1', [$cid]);
     if (portal_can('perm_quotes')) $d['quotesWaiting'] = (int)val("SELECT COUNT(*) FROM quotes WHERE company_id = ? AND status = 'sent' AND (valid_until IS NULL OR valid_until >= CURDATE())", [$cid]);
     if (portal_can('perm_invoices')) {
         $d['owing'] = (float)val("SELECT COALESCE(SUM(total),0) FROM invoices WHERE company_id = ? AND status IN ('approved','sent')", [$cid]);
         $d['overdue'] = (int)val("SELECT COUNT(*) FROM invoices WHERE company_id = ? AND status IN ('approved','sent') AND due_on < CURDATE()", [$cid]);
     }
-    if (portal_can('perm_sites')) $d['devices'] = (int)val("SELECT COUNT(*) FROM equipment e JOIN sites s ON s.id = e.site_id WHERE s.company_id = ? AND e.status <> 'retired'", [$cid]);
+    if (portal_can('perm_sites')) $d['devices'] = (int)val("SELECT COUNT(*) FROM equipment e JOIN sites s ON s.id = e.site_id WHERE s.company_id = ? AND e.status <> 'retired'" . portal_site_sql($pu, 's.id'), [$cid]);
     pview('home', $d);
 }
 
@@ -232,7 +234,8 @@ function p_tickets(): void {
 
 function p_ticket_new(): void {
     $pu = portal_user(); $cid = pu_company();
-    $sites = all('SELECT id, name FROM sites WHERE company_id = ? ORDER BY name', [$cid]);
+    $sites = all('SELECT id, name FROM sites WHERE company_id = ?' . portal_site_sql($pu, 'id') . ' ORDER BY name', [$cid]);
+    $allowed = array_map('intval', array_column($sites, 'id'));
     $row = ['subject' => (string)get('subject', ''), 'site_id' => int_or_null(get('site')), 'equipment_id' => int_or_null(get('equipment')), 'priority' => 'normal', 'description' => ''];
     $errors = [];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -241,15 +244,17 @@ function p_ticket_new(): void {
         if ($row['subject'] === '') $errors['subject'] = 'Tell us in a few words what\'s wrong';
         if ($row['description'] === '') $errors['description'] = 'Required';
         if (!isset(TICKET_PRIORITY[$row['priority']])) $row['priority'] = 'normal';
-        if ($row['site_id'] && (int)val('SELECT company_id FROM sites WHERE id = ?', [$row['site_id']]) !== $cid) $row['site_id'] = null;
+        if ($row['site_id'] && !in_array($row['site_id'], $allowed, true)) $row['site_id'] = null;
         if ($row['equipment_id']) {
-            $eq = one('SELECT e.site_id FROM equipment e JOIN sites s ON s.id = e.site_id WHERE e.id = ? AND s.company_id = ?', [$row['equipment_id'], $cid]);
+            $eq = one('SELECT e.site_id FROM equipment e JOIN sites s ON s.id = e.site_id WHERE e.id = ? AND s.company_id = ?' . portal_site_sql($pu, 's.id'), [$row['equipment_id'], $cid]);
             if (!$eq) $row['equipment_id'] = null; else $row['site_id'] ??= (int)$eq['site_id'];
         }
         if (!$errors) {
             $num = next_number('ticket');
-            q('INSERT INTO tickets (number, company_id, site_id, contact_id, equipment_id, subject, description, priority, status, portal_user_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
-              [$num, $cid, $row['site_id'], $pu['contact_id'], $row['equipment_id'], $row['subject'], $row['description'], $row['priority'], 'open', pu_id()]);
+            $assignee = int_or_null(setting('portal_assignee')) ;
+            if ($assignee && !val('SELECT id FROM users WHERE id = ? AND active = 1', [$assignee])) $assignee = null;
+            q('INSERT INTO tickets (number, company_id, site_id, contact_id, equipment_id, subject, description, priority, status, assigned_to, portal_user_id, client_waiting_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW())',
+              [$num, $cid, $row['site_id'], $pu['contact_id'], $row['equipment_id'], $row['subject'], $row['description'], $row['priority'], 'open', $assignee, pu_id()]);
             $id = (int)db()->lastInsertId();
             p_log('system', 'ticket', $id, "Ticket $num opened in the client portal by {$pu['name']}: {$row['subject']}");
             $n = 0;
@@ -274,7 +279,7 @@ function p_ticket_new(): void {
             redirect("/tickets/$id");
         }
     }
-    $equip = $row['equipment_id'] ? one('SELECT e.* FROM equipment e JOIN sites s ON s.id = e.site_id WHERE e.id = ? AND s.company_id = ?', [$row['equipment_id'], $cid]) : null;
+    $equip = $row['equipment_id'] ? one('SELECT e.* FROM equipment e JOIN sites s ON s.id = e.site_id WHERE e.id = ? AND s.company_id = ?' . portal_site_sql($pu, 's.id'), [$row['equipment_id'], $cid]) : null;
     pview('ticket_new', ['title' => 'New ticket', 'row' => $row, 'errors' => $errors, 'sites' => $sites, 'equip' => $equip]);
 }
 
@@ -321,10 +326,10 @@ function p_ticket_reply(int $id): void {
     p_log('note', 'ticket', $id, $body, true);
     // A reply to "waiting on client" puts the ball back in our court
     if ($t['status'] === 'waiting') {
-        q("UPDATE tickets SET status = 'open' WHERE id = ?", [$id]);
+        q("UPDATE tickets SET status = 'open', client_waiting_at = NOW() WHERE id = ?", [$id]);
         p_log('stage', 'ticket', $id, 'Status: ' . TICKET_STATUS['waiting'] . ' → ' . TICKET_STATUS['open'] . ' (client replied)');
     } else {
-        q('UPDATE tickets SET updated_at = NOW() WHERE id = ?', [$id]);
+        q('UPDATE tickets SET updated_at = NOW(), client_waiting_at = NOW() WHERE id = ?', [$id]);
     }
     $msgs = [];
     foreach (portal_staff_emails($t) as $e) $msgs[] = ['to' => $e, 'reply_to' => $pu['email'], 'subject' => "Client reply on {$t['number']}: {$t['subject']}",
@@ -355,9 +360,9 @@ function p_file_thumb(int $id): void { p_file($id, true); }
 
 // ---------- sites, plans ----------
 function p_sites(): void {
-    $cid = pu_company();
-    $sites = all('SELECT * FROM sites WHERE company_id = ? ORDER BY name', [$cid]);
-    $equip = all("SELECT e.* FROM equipment e JOIN sites s ON s.id = e.site_id WHERE s.company_id = ? AND e.status <> 'retired' ORDER BY e.category, e.make, e.model", [$cid]);
+    $cid = pu_company(); $pu = portal_user();
+    $sites = all('SELECT * FROM sites WHERE company_id = ?' . portal_site_sql($pu, 'id') . ' ORDER BY name', [$cid]);
+    $equip = all("SELECT e.* FROM equipment e JOIN sites s ON s.id = e.site_id WHERE s.company_id = ? AND e.status <> 'retired'" . portal_site_sql($pu, 's.id') . ' ORDER BY e.category, e.make, e.model', [$cid]);
     $by = [];
     foreach ($equip as $e) $by[(int)$e['site_id']][] = $e;
     pview('sites', ['title' => 'Sites & equipment', 'sites' => $sites, 'by' => $by]);
@@ -365,7 +370,7 @@ function p_sites(): void {
 
 function p_plans(): void {
     $plans = all('SELECT sp.*, s.name site, (SELECT MAX(t.closed_at) FROM tickets t WHERE t.plan_id = sp.id AND t.status = "closed") last_visit
-                  FROM service_plans sp LEFT JOIN sites s ON s.id = sp.site_id WHERE sp.company_id = ? AND sp.active = 1 ORDER BY sp.next_due', [pu_company()]);
+                  FROM service_plans sp LEFT JOIN sites s ON s.id = sp.site_id WHERE sp.company_id = ? AND sp.active = 1' . portal_site_sql(portal_user(), 'sp.site_id') . ' ORDER BY sp.next_due', [pu_company()]);
     pview('plans', ['title' => 'Service plans', 'plans' => $plans]);
 }
 
@@ -454,7 +459,7 @@ function p_user_form(int $id = 0): void {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $in = $_POST;
         if (!$id) $in['active'] = 1;
-        [$newId, $errors] = portal_save_user($cid, $in, $id ? $u : null, p_grantable(), !$id, portal_user()['name']);
+        [$newId, $errors] = portal_save_user($cid, $in, $id ? $u : null, p_grantable(), !$id, portal_user()['name'], portal_site_ids(portal_user()));
         if (!$errors) {
             if ($id) p_log('system', 'company', $cid, "Portal access for {$in['name']} changed by " . portal_user()['name'] . ': ' . portal_perm_summary(one('SELECT * FROM portal_users WHERE id = ?', [$newId])));
             flash($id ? 'Saved.' : 'Login created and an invite was emailed.');
@@ -462,8 +467,11 @@ function p_user_form(int $id = 0): void {
         }
         $u = array_merge($u, array_intersect_key($_POST, array_flip(['name', 'email'])));
         foreach (PORTAL_ALL_PERMS as $p) $u[$p] = !empty($_POST[$p]) ? 1 : 0;
+        $u['site_ids'] = array_map('intval', (array)($_POST['site_ids'] ?? []));
     }
-    pview('user_form', ['title' => $id ? 'Edit ' . $u['name'] : 'Add a colleague', 'u' => $u, 'id' => $id, 'errors' => $errors, 'grantable' => p_grantable()]);
+    if (!isset($u['site_ids'])) $u['site_ids'] = $id ? (portal_site_ids($u) ?? []) : [];
+    pview('user_form', ['title' => $id ? 'Edit ' . $u['name'] : 'Add a colleague', 'u' => $u, 'id' => $id, 'errors' => $errors, 'grantable' => p_grantable(),
+        'siteList' => all('SELECT id, name FROM sites WHERE company_id = ? ORDER BY name', [$cid]), 'siteLimit' => portal_site_ids(portal_user())]);
 }
 
 function p_user_invite(int $id): void {

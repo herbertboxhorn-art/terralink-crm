@@ -1,4 +1,4 @@
-<?php $e = fn($k) => isset($errors[$k]) ? '<div class="err">' . h($errors[$k]) . '</div>' : ''; $pp = $pu; $grantable = null; ?>
+<?php $e = fn($k) => isset($errors[$k]) ? '<div class="err">' . h($errors[$k]) . '</div>' : ''; $pp = $pu; $grantable = null; $siteLimit = null; ?>
 <div class="pagehead"><div><a class="crumb" href="/companies/<?= (int)$pu['company_id'] ?>#portal">← <?= h($pu['company']) ?></a><h1><?= h($pu['name']) ?></h1>
   <div class="sub">Client portal login · <?= $pu['last_login_at'] ? 'last signed in ' . h(ago($pu['last_login_at'])) : 'has not signed in yet' ?></div></div></div>
 <div class="card" style="max-width:760px">

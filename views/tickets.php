@@ -3,7 +3,7 @@
   <div class="actions"><a class="btn primary" href="/tickets/new"><svg class="i"><use href="/assets/icons.svg#plus"/></svg>New ticket</a></div>
 </div>
 <div class="filters"><div class="seg">
-  <?php foreach (['open' => 'Open', 'mine' => 'Mine', 'overdue' => 'Overdue', 'closed' => 'Closed', 'all' => 'All'] as $k => $l): ?>
+  <?php foreach (['open' => 'Open', 'mine' => 'Mine', 'client' => 'Client waiting' . (!empty($clientWaiting) ? " ($clientWaiting)" : ''), 'overdue' => 'Overdue', 'closed' => 'Closed', 'all' => 'All'] as $k => $l): ?>
   <a href="?f=<?= $k ?>"<?= $f === $k ? ' class="on"' : '' ?>><?= $l ?></a>
   <?php endforeach; ?>
 </div></div>
@@ -14,7 +14,7 @@
     <tbody><?php foreach ($rows as $t): ?>
       <tr>
         <td class="mono"><?= h($t['number']) ?></td>
-        <td><a class="row" href="/tickets/<?= (int)$t['id'] ?>"><?= h($t['subject']) ?></a><?= sla_state($t) ? '<br>' . sla_badge($t) : '' ?></td>
+        <td><a class="row" href="/tickets/<?= (int)$t['id'] ?>"><?= h($t['subject']) ?></a><?= sla_state($t) ? '<br>' . sla_badge($t) : '' ?><?= client_waiting_badge($t) ? '<br>' . client_waiting_badge($t) : '' ?></td>
         <td><?= h($t['company']) ?><?= $t['site'] ? '<br><span class="muted">' . h($t['site']) . '</span>' : '' ?></td>
         <td class="pillcell"><span class="pill <?= h($t['priority']) ?>"><?= h(TICKET_PRIORITY[$t['priority']]) ?></span></td>
         <td class="pillcell"><span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span></td>

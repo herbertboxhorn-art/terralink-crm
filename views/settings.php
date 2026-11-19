@@ -27,7 +27,12 @@ $fields = [
     <div class="field"><label for="s_rev">Send the "drafts ready to review" email to</label><input id="s_rev" type="email" name="invoice_review_email" placeholder="Empty = the first admin" value="<?= h($s['invoice_review_email'] ?? '') ?>"></div>
     <div class="field wide"><label for="s_eft">EFT / direct deposit details (printed on invoices)</label><textarea id="s_eft" name="eft_details" rows="3" placeholder="e.g. Bank: … · Transit: … · Institution: … · Account: …&#10;Empty = &quot;contact us for banking details&quot;"><?= h($s['eft_details'] ?? '') ?></textarea></div>
     <div class="field wide"><label for="s_cc">Credit card payment (printed on invoices)</label><textarea id="s_cc" name="cc_details" rows="2" placeholder="e.g. Pay online at … or call 778-648-2400&#10;Empty = &quot;call us&quot; with the company phone"><?= h($s['cc_details'] ?? '') ?></textarea></div>
+    <div class="field check wide"><input type="hidden" name="invoice_reminders" value="0"><label><input type="checkbox" name="invoice_reminders" value="1"<?= ($s['invoice_reminders'] ?? '1') === '1' ? ' checked' : '' ?>> Email overdue reminders automatically, 3 and 14 days after the due date (you get a summary; turn off per company on its Edit page)</label></div>
     <div class="field wide"><label for="s_inote">Invoice footer note (optional)</label><textarea id="s_inote" name="invoice_notes" rows="2" placeholder="e.g. Late payments may be charged 2% per month."><?= h($s['invoice_notes'] ?? '') ?></textarea></div>
+    <h2 id="portal" style="grid-column:1/-1;margin:18px 0 0">Client portal</h2>
+    <div class="field"><label for="s_pa">New portal tickets go to</label><select id="s_pa" name="portal_assignee">
+      <?php foreach (user_opts() as $k => $l): ?><option value="<?= h($k) ?>"<?= (string)$k === (string)($s['portal_assignee'] ?? '') ? ' selected' : '' ?>><?= h($k === '' ? '— Nobody (admins get the email) —' : $l) ?></option><?php endforeach; ?></select></div>
+    <div class="field"><label>Portal address</label><div><a href="<?= h(portal_url()) ?>" target="_blank" rel="noopener"><?= h(portal_url()) ?> ↗</a><br><span class="muted" style="font-size:13px">Add logins on each company's Client portal tab.</span></div></div>
     <div class="formbar" style="grid-column:1/-1"><button class="btn primary" type="submit">Save settings</button></div>
   </form>
 </div>

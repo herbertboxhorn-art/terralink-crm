@@ -51,8 +51,31 @@ function pu_id(): ?int { return isset(portal_user()['id']) ? (int)portal_user()[
 function pu_company(): int { return (int)(portal_user()['company_id'] ?? 0); }
 function portal_can(string $perm, ?array $pu = null): bool { $pu ??= portal_user(); return !empty($pu[$perm]); }
 
+/** Site ids a login is limited to, or null when it may see every site of its company (v1.15) */
+function portal_site_ids(array $pu): ?array {
+    static $cache = [];
+    $id = (int)$pu['id'];
+    if (!array_key_exists($id, $cache)) {
+        $ids = array_map('intval', array_column(all('SELECT site_id FROM portal_user_sites WHERE portal_user_id = ?', [$id]), 'site_id'));
+        $cache[$id] = $ids ?: null;
+    }
+    return $cache[$id];
+}
+
+/** SQL "AND col IN (…)" for a site-limited login, '' otherwise. Ids are ints from the database, so inlining is safe. */
+function portal_site_sql(array $pu, string $col): string {
+    $ids = portal_site_ids($pu);
+    return $ids === null ? '' : " AND $col IN (" . implode(',', $ids) . ')';
+}
+
 /** WHERE condition (alias t) for the tickets this login may see */
 function portal_ticket_scope(array $pu, string $a = 't'): array {
+    $sites = portal_site_ids($pu);
+    if (!empty($pu['perm_tickets_all']) && $sites !== null) {
+        // site-limited: every ticket at their sites, plus their own anywhere
+        return ["($a.company_id = ? AND ($a.site_id IN (" . implode(',', $sites) . ") OR $a.portal_user_id = ? OR ($a.contact_id IS NOT NULL AND $a.contact_id = ?)))",
+                [(int)$pu['company_id'], (int)$pu['id'], (int)($pu['contact_id'] ?? 0)]];
+    }
     if (!empty($pu['perm_tickets_all'])) return ["$a.company_id = ?", [(int)$pu['company_id']]];
     if ($pu['contact_id']) return ["($a.company_id = ? AND ($a.portal_user_id = ? OR $a.contact_id = ?))", [(int)$pu['company_id'], (int)$pu['id'], (int)$pu['contact_id']]];
     return ["($a.company_id = ? AND $a.portal_user_id = ?)", [(int)$pu['company_id'], (int)$pu['id']]];
@@ -66,7 +89,11 @@ function portal_perm_summary(array $pu): string {
         if ($k === 'perm_tickets') $label .= empty($pu['perm_tickets_all']) ? ' (own)' : ' (all)';
         $out[] = $label;
     }
-    return $out ? implode(', ', $out) : 'Nothing yet';
+    $s = $out ? implode(', ', $out) : 'Nothing yet';
+    if (!empty($pu['id']) && ($ids = portal_site_ids($pu)) !== null) {
+        $s .= ' · only ' . implode(', ', array_column(all('SELECT name FROM sites WHERE id IN (' . implode(',', $ids) . ') ORDER BY name'), 'name'));
+    }
+    return $s;
 }
 
 // ---------- create / update logins (staff side and client admins share this) ----------
@@ -74,7 +101,7 @@ function portal_perm_summary(array $pu): string {
  * Validates and saves a portal login. $limit = perms the editor may hand out (null = any, for staff).
  * Returns [id|null, errors]. Sends the invite for new logins when $invite is true.
  */
-function portal_save_user(int $companyId, array $in, ?array $existing, ?array $limit, bool $invite, string $byName): array {
+function portal_save_user(int $companyId, array $in, ?array $existing, ?array $limit, bool $invite, string $byName, ?array $limitSites = null): array {
     $errors = [];
     $name = trim((string)($in['name'] ?? ''));
     $email = strtolower(trim((string)($in['email'] ?? '')));
@@ -101,22 +128,33 @@ function portal_save_user(int $companyId, array $in, ?array $existing, ?array $l
         $perms[$p] = $want;
     }
     if (!$perms['perm_tickets']) $perms['perm_tickets_all'] = 0;
+    // Site limit: only the company's own sites; a site-limited admin can only hand out (a subset of) their sites
+    $companySites = array_map('intval', array_column(all('SELECT id FROM sites WHERE company_id = ?', [$companyId]), 'id'));
+    $sites = array_values(array_intersect(array_map('intval', (array)($in['site_ids'] ?? [])), $companySites));
+    if ($limitSites !== null) { $sites = array_values(array_intersect($sites, $limitSites)); if (!$sites) $sites = $limitSites; }
     if ($errors) return [null, $errors];
 
     $vals = ['name' => $name, 'email' => $email, 'contact_id' => $contactId] + $perms;
     if (array_key_exists('active', $in)) $vals['active'] = !empty($in['active']) ? 1 : 0;
     if ($existing) {
         q('UPDATE portal_users SET ' . implode(', ', array_map(fn($c) => "$c = ?", array_keys($vals))) . ' WHERE id = ?', [...array_values($vals), (int)$existing['id']]);
+        portal_set_sites((int)$existing['id'], $sites);
         return [(int)$existing['id'], []];
     }
     $vals += ['company_id' => $companyId, 'password_hash' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
               'created_by_user' => uid(), 'created_by_portal' => pu_id()];
     q('INSERT INTO portal_users (' . implode(',', array_keys($vals)) . ') VALUES (' . implode(',', array_fill(0, count($vals), '?')) . ')', array_values($vals));
     $id = (int)db()->lastInsertId();
+    portal_set_sites($id, $sites);
     q('INSERT INTO activities (entity_type, entity_id, company_id, user_id, portal_user_id, type, body) VALUES (?,?,?,?,?,?,?)',
       ['company', $companyId, $companyId, uid(), pu_id(), 'system', "Portal login added for $name ($email) by $byName"]);
     if ($invite) portal_send_invite(one('SELECT * FROM portal_users WHERE id = ?', [$id]), $byName);
     return [$id, []];
+}
+
+function portal_set_sites(int $puId, array $siteIds): void {
+    q('DELETE FROM portal_user_sites WHERE portal_user_id = ?', [$puId]);
+    foreach (array_unique($siteIds) as $s) q('INSERT INTO portal_user_sites (portal_user_id, site_id) VALUES (?, ?)', [$puId, (int)$s]);
 }
 
 function portal_make_token(int $puId, string $kind): string {
@@ -169,6 +207,27 @@ function portal_notify_client(array $t, string $message, ?string $newStatus = nu
                 . '<blockquote style="margin:12px 0;padding:10px 14px;background:#f3f5f7;border-left:3px solid #FF7A1A;white-space:pre-wrap">' . h($message) . '</blockquote>'
                 . ($newStatus ? '<p>Status: <b>' . h(TICKET_STATUS[$newStatus] ?? $newStatus) . '</b></p>' : '')
                 . mail_button($link, 'View or reply in the portal')];
+    }
+    return mail_send($msgs) ? count($msgs) : 0;
+}
+
+/** Does this company have an active portal login with the given permission? (for "view online" buttons in emails) */
+function portal_company_has(int $companyId, string $perm): bool {
+    if (!in_array($perm, PORTAL_ALL_PERMS, true)) return false;
+    return (bool)val("SELECT 1 FROM portal_users WHERE company_id = ? AND active = 1 AND $perm = 1 LIMIT 1", [$companyId]);
+}
+
+/** Tells the client watchers a ticket is resolved (v1.15). Returns how many were emailed. */
+function portal_notify_closed(array $t): int {
+    $w = portal_ticket_watchers($t);
+    if (!$w) return 0;
+    $link = portal_url('/tickets/' . (int)$t['id']);
+    $msgs = [];
+    foreach ($w as $pu) {
+        $msgs[] = ['to' => $pu['email'], 'subject' => 'Resolved: ' . $t['number'] . ' ' . $t['subject'],
+            'html' => '<p>Hi ' . h(explode(' ', $pu['name'])[0]) . ',</p><p>We\'ve closed your ticket <b>' . h($t['number']) . '</b>: ' . h($t['subject']) . '.</p>'
+                . '<p>You can see what was done and download the work summary in the portal. If it\'s not fixed, open a follow-up ticket there or call us at ' . h(setting('company_phone')) . '.</p>'
+                . mail_button($link, 'View the ticket')];
     }
     return mail_send($msgs) ? count($msgs) : 0;
 }

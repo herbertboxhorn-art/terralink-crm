@@ -17,6 +17,7 @@ function h_dashboard(): void {
                                WHERE e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 60 DAY
                                ORDER BY e.warranty_until LIMIT 8"),
         'slaOverdue'   => (int)val('SELECT COUNT(*) FROM tickets t WHERE ' . sla_overdue_sql('t')),
+        'clientWaiting' => (int)val("SELECT COUNT(*) FROM tickets WHERE status <> 'closed' AND client_waiting_at IS NOT NULL"),
         'overdueCount' => (int)val('SELECT COUNT(*) FROM tasks WHERE done_at IS NULL AND due_date < CURDATE() AND assigned_to = ?', [$me]),
         'lowStock'     => all('SELECT id, name, unit, qty_on_hand, reorder_level FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level ORDER BY name LIMIT 8'),
         'travelUnset'  => (float)setting('travel_rate_per_km', '0') <= 0 && is_role('admin'),
@@ -55,7 +56,7 @@ function h_search(): void {
         $res['tickets']   = all('SELECT t.id, t.number, t.subject, t.status, c.name company FROM tickets t JOIN companies c ON c.id = t.company_id WHERE t.subject LIKE ? OR t.number LIKE ? LIMIT 20', [$like, $like]);
         $res['equipment'] = all('SELECT e.*, s.name site, s.id site_id, c.name company FROM equipment e LEFT JOIN sites s ON s.id = e.site_id LEFT JOIN companies c ON c.id = s.company_id
                                  WHERE e.serial LIKE ? OR e.mac LIKE ? OR e.ip_address LIKE ? OR e.model LIKE ? OR e.phone_number LIKE ? LIMIT 20', [$like, $like, $like, $like, $like]);
-        $res['quotes']    = all('SELECT q.id, q.number, q.title, q.status, c.name company FROM quotes q JOIN companies c ON c.id = q.company_id WHERE q.number LIKE ? OR q.title LIKE ? LIMIT 20', [$like, $like]);
+        if (!is_role('tech')) $res['quotes'] = all('SELECT q.id, q.number, q.title, q.status, c.name company FROM quotes q JOIN companies c ON c.id = q.company_id WHERE q.number LIKE ? OR q.title LIKE ? LIMIT 20', [$like, $like]);
     }
     view('search', ['title' => 'Search', 'term' => $term, 'res' => $res]);
 }
@@ -112,6 +113,8 @@ function h_company_show(int $id): void {
 
 function h_company_delete(int $id): void {
     require_role('admin');
+    // Invoices are financial records: a company that has any can't be deleted (it would also fail on the foreign key)
+    if ((int)val('SELECT COUNT(*) FROM invoices WHERE company_id = ?', [$id])) { flash('This company has invoices, so it can\'t be deleted. Its records stay for your books.', 'bad'); redirect("/companies/$id"); }
     q('DELETE FROM activities WHERE company_id = ?', [$id]);
     q('DELETE FROM companies WHERE id = ?', [$id]);
     flash('Company deleted.');
@@ -153,7 +156,7 @@ function h_contact_form(int $id = 0): void {
     }
     view('form', ['title' => $id ? 'Edit contact' : 'New contact', 'def' => $def, 'row' => $row, 'errors' => $errors,
         'cancel' => $id ? "/contacts/$id" : (($row['company_id'] ?? null) ? "/companies/{$row['company_id']}" : '/contacts'),
-        'deleteUrl' => $id ? "/contacts/$id/delete" : null]);
+        'deleteUrl' => ($id && is_role('admin')) ? "/contacts/$id/delete" : null]);
 }
 
 function h_contact_show(int $id): void {
@@ -169,6 +172,7 @@ function h_contact_show(int $id): void {
 }
 
 function h_contact_delete(int $id): void {
+    require_role('admin');
     $cid = val('SELECT company_id FROM contacts WHERE id = ?', [$id]);
     q("DELETE FROM activities WHERE entity_type = 'contact' AND entity_id = ?", [$id]);
     q('DELETE FROM contacts WHERE id = ?', [$id]);

@@ -26,6 +26,12 @@ function export_defs(): array {
             FROM consumables ORDER BY category, name"],
         'catalog' => ['Price list', "SELECT sku AS SKU, name AS Item, description AS Description, kind AS Type, unit AS Unit, price AS Price, cost AS Cost, IF(pst_applies,'yes','') AS PST,
             stock_type AS `Stock link`, CONCAT_WS(' ', eq_make, eq_model) AS `Equipment model`, IF(active,'yes','hidden') AS Active FROM catalog_items ORDER BY kind, name"],
+        'invoices' => ['Invoices', "SELECT IFNULL(i.number, CONCAT('DRAFT-', i.id)) AS Invoice, c.name AS Customer, i.status AS Status, i.issued_on AS `Invoice date`, i.due_on AS `Due date`,
+            i.terms_days AS `Terms (days)`, i.subtotal AS Subtotal, i.gst AS GST, i.pst AS PST, i.total AS Total, i.paid_on AS `Paid on`, i.paid_method AS `Paid by`, i.bill_to_email AS `Billed to`
+            FROM invoices i JOIN companies c ON c.id = i.company_id ORDER BY i.id"],
+        'invoicelines' => ['Invoice lines', "SELECT IFNULL(i.number, CONCAT('DRAFT-', i.id)) AS Invoice, c.name AS Customer, i.issued_on AS `Invoice date`, ii.description AS Description,
+            ii.kind AS Type, ii.qty AS Qty, ii.unit AS Unit, ii.unit_price AS `Unit price`, ROUND(ii.qty * ii.unit_price, 2) AS Amount, IF(ii.pst_applies, 'yes', '') AS PST, t.number AS Ticket
+            FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id JOIN companies c ON c.id = i.company_id LEFT JOIN tickets t ON t.id = ii.ticket_id ORDER BY i.id, ii.position"],
         'tickets' => ['Tickets', "SELECT t.number AS Ticket, t.subject AS Subject, c.name AS Company, s.name AS Site, t.priority AS Priority, t.status AS Status,
             u.name AS Assigned, t.minutes_spent AS Minutes, t.created_at AS Opened, t.first_response_at AS `First response`, t.closed_at AS Closed
             FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id LEFT JOIN users u ON u.id = t.assigned_to ORDER BY t.id"],
@@ -58,7 +64,7 @@ function h_data(): void {
     require_role('admin');
     $counts = [];
     $tables = ['companies' => 'companies', 'contacts' => 'contacts', 'deals' => 'deals', 'sites' => 'sites', 'equipment' => 'equipment',
-               'consumables' => 'consumables', 'catalog' => 'catalog_items', 'tickets' => 'tickets', 'quotes' => 'quotes'];
+               'consumables' => 'consumables', 'catalog' => 'catalog_items', 'tickets' => 'tickets', 'quotes' => 'quotes', 'invoices' => 'invoices', 'invoicelines' => 'invoice_items'];
     foreach ($tables as $k => $t) $counts[$k] = (int)val("SELECT COUNT(*) FROM `$t`");
     view('data', ['title' => 'Import & export', 'defs' => export_defs(), 'counts' => $counts,
         'files' => one('SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM files'),

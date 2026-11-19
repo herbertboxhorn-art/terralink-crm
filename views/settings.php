@@ -20,6 +20,14 @@ $fields = [
     <div class="field wide"><label for="s_mail">Email service URL (n8n "TerraLink CRM — Outbound Email" webhook)</label><input id="s_mail" name="mail_webhook_url" value="<?= h($s['mail_webhook_url'] ?? '') ?>"></div>
     <div class="field wide"><label for="s_loc">Stock locations (one per line, first is the default)</label><textarea id="s_loc" name="stock_locations" rows="3" placeholder="Shop&#10;Truck 1&#10;Truck 2"><?= h($s['stock_locations'] ?? 'Shop') ?></textarea></div>
     <div class="field wide"><label for="s_terms">Quote terms (printed at the bottom of every quote)</label><textarea id="s_terms" name="quote_terms" rows="4"><?= h($s['quote_terms'] ?? '') ?></textarea></div>
+    <div class="field wide" id="invoices" style="border-top:1px solid var(--line);padding-top:14px;margin-top:4px"><label style="font-size:16px">Invoices</label>
+      <span class="muted" style="font-size:13px">Draft invoices are made automatically on the 1st of each month. You approve each one, then it's emailed to the client.</span></div>
+    <div class="field"><label for="s_pay">E-Transfer email (on every invoice)</label><input id="s_pay" type="email" name="payment_email" value="<?= h($s['payment_email'] ?? 'payment@terralinksystems.com') ?>"></div>
+    <div class="field"><label for="s_terms_d">Standard payment terms (days)</label><input id="s_terms_d" type="number" min="0" max="120" name="invoice_terms_days" value="<?= h($s['invoice_terms_days'] ?? '15') ?>"></div>
+    <div class="field"><label for="s_rev">Send the "drafts ready to review" email to</label><input id="s_rev" type="email" name="invoice_review_email" placeholder="Empty = the first admin" value="<?= h($s['invoice_review_email'] ?? '') ?>"></div>
+    <div class="field wide"><label for="s_eft">EFT / direct deposit details (printed on invoices)</label><textarea id="s_eft" name="eft_details" rows="3" placeholder="e.g. Bank: … · Transit: … · Institution: … · Account: …&#10;Empty = &quot;contact us for banking details&quot;"><?= h($s['eft_details'] ?? '') ?></textarea></div>
+    <div class="field wide"><label for="s_cc">Credit card payment (printed on invoices)</label><textarea id="s_cc" name="cc_details" rows="2" placeholder="e.g. Pay online at … or call 778-648-2400&#10;Empty = &quot;call us&quot; with the company phone"><?= h($s['cc_details'] ?? '') ?></textarea></div>
+    <div class="field wide"><label for="s_inote">Invoice footer note (optional)</label><textarea id="s_inote" name="invoice_notes" rows="2" placeholder="e.g. Late payments may be charged 2% per month."><?= h($s['invoice_notes'] ?? '') ?></textarea></div>
     <div class="formbar" style="grid-column:1/-1"><button class="btn primary" type="submit">Save settings</button></div>
   </form>
 </div>

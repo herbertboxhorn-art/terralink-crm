@@ -95,6 +95,9 @@ function cron_daily(bool $force = false, bool $send = true): array {
     if (!$force && setting('cron_daily_last') === $today) return ['ok' => true, 'skipped' => 'already ran today'];
     q('INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)', ['cron_daily_last', $today]);
     $made = plans_generate();
+    // Month-end invoicing: on the first run of a new month, build draft invoices and tell Herb
+    foreach (['quotes', 'inventory', 'field', 'charges', 'invoices'] as $h) require_once APP_ROOT . "/src/handlers/$h.php";
+    $inv = invoices_monthly($send);
     $mails = [];
     foreach (all("SELECT * FROM users WHERE active = 1 AND daily_email = 1 AND email <> ''") as $u) {
         $m = daily_digest($u);
@@ -103,5 +106,5 @@ function cron_daily(bool $force = false, bool $send = true): array {
     $sent = ($send && $mails) ? mail_send($mails) : null;
     // old one-time links are useless after a day
     q('DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');
-    return ['ok' => true, 'date' => $today, 'plan_tickets' => count($made), 'emails' => count($mails), 'mail_ok' => $sent];
+    return ['ok' => true, 'date' => $today, 'plan_tickets' => count($made), 'emails' => count($mails), 'mail_ok' => $sent, 'invoices' => $inv];
 }

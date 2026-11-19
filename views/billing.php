@@ -1,5 +1,6 @@
 <div class="pagehead">
-  <div><h1>Billing</h1><div class="sub">Closed, billable tickets with charges or unbilled time. Bill them, then mark them billed.</div></div>
+  <div><h1>Ready to bill</h1><div class="sub">Closed, billable tickets with charges or unbilled time. They go on draft invoices automatically on the 1st. Use "Mark billed" only for work billed outside the CRM.</div></div>
+  <div class="actions"><a class="btn" href="/invoices">Invoices</a></div>
 </div>
 <div class="filters"><div class="seg">
   <a href="/billing"<?= $tab === 'ready' ? ' class="on"' : '' ?>>Ready to bill</a>

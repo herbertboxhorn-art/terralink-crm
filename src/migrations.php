@@ -232,6 +232,69 @@ function migrations(): array {
             // Visits opened by a service plan are covered by the plan fee
             db()->exec("UPDATE tickets SET billing = 'no_charge' WHERE plan_id IS NOT NULL");
         },
+        // 1.13.0 — invoices (month-end drafts → approve → email), company payment terms
+        '1.13.0' => function (): void {
+            if (!table_exists('invoices')) db()->exec("CREATE TABLE invoices (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                number VARCHAR(30) NULL,
+                company_id INT UNSIGNED NOT NULL,
+                status ENUM('draft','approved','sent','paid','void') NOT NULL DEFAULT 'draft',
+                period VARCHAR(7) NULL,
+                issued_on DATE NULL,
+                due_on DATE NULL,
+                terms_days SMALLINT UNSIGNED NOT NULL DEFAULT 15,
+                bill_to_email VARCHAR(190) NULL,
+                gst_rate DECIMAL(5,3) NOT NULL DEFAULT 5,
+                pst_rate DECIMAL(5,3) NOT NULL DEFAULT 7,
+                subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+                gst DECIMAL(12,2) NOT NULL DEFAULT 0,
+                pst DECIMAL(12,2) NOT NULL DEFAULT 0,
+                total DECIMAL(12,2) NOT NULL DEFAULT 0,
+                notes TEXT NULL,
+                created_by INT UNSIGNED NULL,
+                approved_by INT UNSIGNED NULL,
+                approved_at DATETIME NULL,
+                sent_at DATETIME NULL,
+                sent_to VARCHAR(255) NULL,
+                paid_on DATE NULL,
+                paid_method VARCHAR(40) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_inv_number (number),
+                INDEX idx_inv_status (status, due_on),
+                INDEX idx_inv_company (company_id),
+                CONSTRAINT fk_inv_company FOREIGN KEY (company_id) REFERENCES companies(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!table_exists('invoice_items')) db()->exec("CREATE TABLE invoice_items (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                invoice_id INT UNSIGNED NOT NULL,
+                position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                kind ENUM('labour','hardware','software','travel','other') NOT NULL DEFAULT 'other',
+                description VARCHAR(255) NOT NULL,
+                qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+                unit VARCHAR(20) NULL,
+                unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                pst_applies TINYINT(1) NOT NULL DEFAULT 0,
+                ticket_id INT UNSIGNED NULL,
+                charge_id INT UNSIGNED NULL,
+                plan_id INT UNSIGNED NULL,
+                plan_period VARCHAR(7) NULL,
+                auto_added TINYINT(1) NOT NULL DEFAULT 0,
+                INDEX idx_ii_invoice (invoice_id, position),
+                INDEX idx_ii_plan (plan_id, plan_period),
+                INDEX idx_ii_ticket (ticket_id),
+                CONSTRAINT fk_ii_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!col_exists('companies', 'payment_terms_days')) db()->exec('ALTER TABLE companies ADD COLUMN payment_terms_days SMALLINT UNSIGNED NULL AFTER province');
+            if (!col_exists('companies', 'billing_email')) db()->exec('ALTER TABLE companies ADD COLUMN billing_email VARCHAR(190) NULL AFTER payment_terms_days');
+            db()->exec("ALTER TABLE activities MODIFY entity_type ENUM('company','contact','deal','site','ticket','quote','invoice') NOT NULL");
+            db()->exec("INSERT IGNORE INTO counters (name, value) VALUES ('invoice', 0)");
+            // Defaults. The first automatic run is on the 1st of next month, not right after this update.
+            $first = date('Y-m');
+            foreach (['payment_email' => 'payment@terralinksystems.com', 'invoice_terms_days' => '15', 'invoice_last_month' => $first] as $k => $v) {
+                q('INSERT IGNORE INTO settings (k, v) VALUES (?, ?)', [$k, $v]);
+            }
+        },
     ];
 }
 

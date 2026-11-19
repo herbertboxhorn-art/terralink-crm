@@ -114,5 +114,34 @@ function migrations(): array {
                 CONSTRAINT fk_file_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         },
+        // 1.8.0 — recurring service plans, daily summary opt-out, quote email log
+        '1.8.0' => function (): void {
+            if (!table_exists('service_plans')) db()->exec("CREATE TABLE service_plans (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                company_id INT UNSIGNED NOT NULL,
+                site_id INT UNSIGNED NULL,
+                title VARCHAR(190) NOT NULL,
+                description TEXT NULL,
+                every_months TINYINT UNSIGNED NOT NULL DEFAULT 3,
+                next_due DATE NOT NULL,
+                due_day TINYINT UNSIGNED NULL,
+                lead_days SMALLINT UNSIGNED NOT NULL DEFAULT 7,
+                priority ENUM('low','normal','high','urgent') NOT NULL DEFAULT 'normal',
+                assigned_to INT UNSIGNED NULL,
+                fee DECIMAL(10,2) NOT NULL DEFAULT 0,
+                active TINYINT(1) NOT NULL DEFAULT 1,
+                last_ticket_id INT UNSIGNED NULL,
+                created_by INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_plan_due (active, next_due),
+                CONSTRAINT fk_plan_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+                CONSTRAINT fk_plan_site FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL,
+                CONSTRAINT fk_plan_user FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!col_exists('service_plans', 'due_day')) db()->exec('ALTER TABLE service_plans ADD COLUMN due_day TINYINT UNSIGNED NULL AFTER next_due');
+            if (!col_exists('tickets', 'plan_id')) db()->exec('ALTER TABLE tickets ADD COLUMN plan_id INT UNSIGNED NULL AFTER equipment_id, ADD INDEX idx_ticket_plan (plan_id)');
+            if (!col_exists('users', 'daily_email')) db()->exec('ALTER TABLE users ADD COLUMN daily_email TINYINT(1) NOT NULL DEFAULT 1 AFTER active');
+        },
     ];
 }

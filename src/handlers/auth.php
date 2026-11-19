@@ -89,6 +89,11 @@ function h_user_form(int $id = 0): void {
 
 function h_account(): void {
     $errors = [];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && post('prefs')) {
+        q('UPDATE users SET daily_email = ? WHERE id = ?', [post('daily_email') ? 1 : 0, uid()]);
+        flash(post('daily_email') ? 'You\'ll get a summary email each morning.' : 'Morning summary email turned off.');
+        redirect('/account');
+    }
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cur = (string)($_POST['current'] ?? '');
         $new = (string)($_POST['new'] ?? '');

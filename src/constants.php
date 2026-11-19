@@ -33,6 +33,7 @@ function stock_locations(): array {
 const TICKET_PRIORITY = ['low' => 'Low', 'normal' => 'Normal', 'high' => 'High', 'urgent' => 'Urgent'];
 const TICKET_STATUS = ['open' => 'Open', 'in_progress' => 'In progress', 'waiting' => 'Waiting on client', 'closed' => 'Closed'];
 
+const PLAN_EVERY = [1 => 'Monthly', 2 => 'Every 2 months', 3 => 'Quarterly (every 3 months)', 4 => 'Every 4 months', 6 => 'Twice a year', 12 => 'Yearly'];
 const QUOTE_STATUS = ['draft' => 'Draft', 'sent' => 'Sent', 'accepted' => 'Accepted', 'declined' => 'Declined', 'expired' => 'Expired'];
 const ITEM_KINDS = ['labour' => 'Labour', 'hardware' => 'Hardware', 'software' => 'Software / licence', 'travel' => 'Travel', 'other' => 'Other'];
 

@@ -59,7 +59,7 @@
 </div>
 
 <div class="grid side">
-  <div class="stack"><?php $ftype = 'site'; $fid = $id; require __DIR__ . '/_files.php'; ?><?php $etype = 'site'; $eid = $id; require __DIR__ . '/_timeline.php'; ?></div>
+  <div class="stack"><?php $pl = plans_for('site_id', $id); $newUrl = "/plans/new?site_id=$id"; require __DIR__ . '/_plans.php'; ?><?php $ftype = 'site'; $fid = $id; require __DIR__ . '/_files.php'; ?><?php $etype = 'site'; $eid = $id; require __DIR__ . '/_timeline.php'; ?></div>
   <div class="card"><h2>Tickets at this site</h2>
     <?php if (!$tickets): ?><div class="empty">None.</div><?php else: ?><ul class="list"><?php foreach ($tickets as $t): ?>
       <li><span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span><div class="grow"><a href="/tickets/<?= (int)$t['id'] ?>"><?= h($t['subject']) ?></a><span class="meta"><?= h($t['number']) ?> · <?= h(ago($t['created_at'])) ?></span></div></li>

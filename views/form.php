@@ -41,3 +41,12 @@
 <?php if (!empty($files)): [$ftype, $fid] = $files; ?>
 <div style="max-width:860px;margin-top:16px"><?php require __DIR__ . '/_files.php'; ?></div>
 <?php endif; ?>
+<?php if (!empty($planId)): ?>
+<div class="card" style="max-width:860px;margin-top:16px">
+  <div class="cardhead"><h2>Tickets from this plan</h2>
+    <form method="post" action="/plans/<?= (int)$planId ?>/run" data-confirm="Open the ticket for the next visit now?"><?= csrf_field() ?><button class="btn sm" type="submit">Open ticket now</button></form></div>
+  <?php if (empty($planTickets)): ?><div class="empty" style="padding:6px 0">None yet.</div><?php else: ?><ul class="list"><?php foreach ($planTickets as $t): ?>
+    <li><span class="pill <?= h($t['status']) ?>"><?= h(TICKET_STATUS[$t['status']]) ?></span><div class="grow"><a href="/tickets/<?= (int)$t['id'] ?>"><?= h($t['number']) ?></a><span class="meta"><?= h(fdate($t['created_at'], 'M j, Y')) ?></span></div></li>
+  <?php endforeach; ?></ul><?php endif; ?>
+</div>
+<?php endif; ?>

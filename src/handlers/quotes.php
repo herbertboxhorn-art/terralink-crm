@@ -108,7 +108,8 @@ function h_quote_show(int $id): void {
     view('quote', ['title' => $qt['number'] . ' — ' . $qt['title'], 'qt' => $qt, 'items' => $items, 'tot' => $tot, 'timeline' => $timeline]);
 }
 
-function h_quote_pdf(int $id): void {
+/** Renders a quote to PDF. Returns [bytes, filename] */
+function quote_pdf(int $id): array {
     [$qt, $items, $tot] = load_quote($id);
     ob_start();
     view('quote_pdf', ['qt' => $qt, 'items' => $items, 'tot' => $tot], false);
@@ -122,9 +123,56 @@ function h_quote_pdf(int $id): void {
     $pdf->setPaper('letter');
     $pdf->render();
     $fname = preg_replace('/[^A-Za-z0-9_-]+/', '-', $qt['number'] . '-' . $qt['company']) . '.pdf';
+    return [$pdf->output(), $fname];
+}
+
+function h_quote_pdf(int $id): void {
+    [$bytes, $fname] = quote_pdf($id);
     header('Content-Type: application/pdf');
     header('Content-Disposition: ' . (get('dl') ? 'attachment' : 'inline') . '; filename="' . $fname . '"');
-    echo $pdf->output();
+    echo $bytes;
+}
+
+/** Email the quote PDF to the client (through n8n / noreply@, replies go to the sender) */
+function h_quote_email(int $id): void {
+    [$qt, $items, $tot] = load_quote($id);
+    $first = $qt['first_name'] ?: 'there';
+    $co = setting('company_name', 'TerraLink Systems');
+    $v = ['to' => $qt['ct_email'] ?: ($qt['c_email'] ?? ''), 'cc_me' => '1',
+          'subject' => "Quote {$qt['number']} from $co: {$qt['title']}",
+          'message' => "Hi $first,\n\nThanks for the chance to quote on this. Your quote {$qt['number']} for \"{$qt['title']}\" is attached as a PDF. The total is " . money($tot['total']) . ' CAD'
+            . ($qt['valid_until'] ? ', valid until ' . date('F j, Y', strtotime($qt['valid_until'])) : '') . ".\n\nJust reply to this email with any questions, or to go ahead.\n\n"
+            . user()['name'] . "\n$co" . (setting('company_phone') ? ' · ' . setting('company_phone') : '')];
+    $errors = [];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $v = ['to' => trim((string)post('to')), 'cc_me' => post('cc_me') ? '1' : '', 'subject' => trim((string)post('subject')), 'message' => trim((string)post('message'))];
+        $to = array_values(array_filter(array_map('trim', preg_split('/[,;\s]+/', $v['to']))));
+        if (!$to) $errors['to'] = 'Required';
+        foreach ($to as $a) if (!filter_var($a, FILTER_VALIDATE_EMAIL)) $errors['to'] = "Not a valid email: $a";
+        if (count($to) > 5) $errors['to'] = 'Up to 5 addresses';
+        if ($v['subject'] === '') $errors['subject'] = 'Required';
+        if ($v['message'] === '') $errors['message'] = 'Required';
+        if (!$errors) {
+            [$bytes, $fname] = quote_pdf($id);
+            $html = nl2br(h($v['message']), false);
+            $att = ['name' => $fname, 'mime' => 'application/pdf', 'data' => $bytes];
+            $msgs = [];
+            foreach ($to as $a) $msgs[] = ['to' => $a, 'subject' => $v['subject'], 'html' => $html, 'reply_to' => user()['email'], 'attachment' => $att];
+            if ($v['cc_me']) $msgs[] = ['to' => user()['email'], 'subject' => '[Copy] ' . $v['subject'], 'html' => '<p style="color:#7a8a97">Copy of what was sent to ' . h(implode(', ', $to)) . ':</p>' . $html, 'reply_to' => user()['email'], 'attachment' => $att];
+            if (mail_send($msgs)) {
+                log_activity('email', 'quote', $id, 'Quote emailed to ' . implode(', ', $to) . ' (' . $fname . ')', (int)$qt['company_id']);
+                if ($qt['status'] === 'draft') {
+                    q("UPDATE quotes SET status = 'sent' WHERE id = ?", [$id]);
+                    log_activity('stage', 'quote', $id, "Quote {$qt['number']}: Draft → Sent", (int)$qt['company_id']);
+                }
+                if ($qt['deal_id']) q("UPDATE deals SET stage = 'quoted', stage_changed_at = NOW() WHERE id = ? AND stage IN ('new','audit_booked')", [$qt['deal_id']]);
+                flash('Quote emailed to ' . implode(', ', $to) . '.');
+                redirect("/quotes/$id");
+            }
+            flash('The email could not be sent. See Settings → Recent emails for the reason.', 'bad');
+        }
+    }
+    view('quote_email', ['title' => 'Email ' . $qt['number'], 'qt' => $qt, 'tot' => $tot, 'v' => $v, 'errors' => $errors]);
 }
 
 function h_quote_status(int $id): void {

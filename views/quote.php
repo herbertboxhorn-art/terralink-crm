@@ -8,7 +8,8 @@
       <?php if ($qt['deal_id']): ?><a href="/deals/<?= (int)$qt['deal_id'] ?>">Deal: <?= h($qt['deal']) ?></a><?php endif; ?></div>
   </div>
   <div class="actions">
-    <a class="btn primary" href="/quotes/<?= $id ?>/pdf" target="_blank">PDF</a>
+    <a class="btn primary" href="/quotes/<?= $id ?>/email"><svg class="i"><use href="/assets/icons.svg#send"/></svg>Email to client</a>
+    <a class="btn" href="/quotes/<?= $id ?>/pdf" target="_blank">PDF</a>
     <a class="btn" href="/quotes/<?= $id ?>/edit">Edit</a>
     <form method="post" action="/quotes/<?= $id ?>/duplicate"><?= csrf_field() ?><button class="btn" type="submit">Copy as revision</button></form>
   </div>

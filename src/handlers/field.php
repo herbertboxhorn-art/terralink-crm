@@ -298,8 +298,8 @@ function h_ticket_form(int $id = 0): void {
 
 function h_ticket_show(int $id): void {
     $t = one('SELECT t.*, c.name company, s.name site, u.name assignee, ct.first_name, ct.last_name, ct.phone ct_phone, ct.mobile ct_mobile,
-                     e.category e_cat, e.make e_make, e.model e_model, e.serial e_serial
-              FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id
+                     e.category e_cat, e.make e_make, e.model e_model, e.serial e_serial, sp.title plan_title
+              FROM tickets t LEFT JOIN service_plans sp ON sp.id = t.plan_id JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id
               LEFT JOIN users u ON u.id = t.assigned_to LEFT JOIN contacts ct ON ct.id = t.contact_id
               LEFT JOIN equipment e ON e.id = t.equipment_id WHERE t.id = ?', [$id]);
     if (!$t) not_found();

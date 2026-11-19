@@ -119,6 +119,7 @@ $routes = [
     ['GET|POST', '/catalog/new', 'h_catalog_form'],
     ['GET|POST', '/catalog/(\d+)/edit', 'h_catalog_form'],
     ['POST', '/catalog/(\d+)/delete', 'h_catalog_delete'],
+    ['POST', '/catalog/import', 'h_catalog_import'],
 
     ['POST', '/files', 'h_file_upload'],
     ['GET', '/files/(\d+)', 'h_file_get'],

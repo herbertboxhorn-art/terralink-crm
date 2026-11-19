@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.10.0';
 const SCHEMA_VERSION = '1.9.0';
 const APP_ROOT = __DIR__ . '/..';
 

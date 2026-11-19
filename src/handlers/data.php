@@ -24,7 +24,7 @@ function export_defs(): array {
         'consumables' => ['Consumables', "SELECT id AS ID, name AS Item, category AS Category, sku AS SKU, unit AS Unit, qty_on_hand AS `On hand`,
             reorder_level AS `Re-order at`, unit_cost AS `Unit cost`, location AS Location, supplier AS Supplier, IF(active, 'yes', 'archived') AS Active
             FROM consumables ORDER BY category, name"],
-        'catalog' => ['Price list', "SELECT sku AS SKU, name AS Item, kind AS Type, unit AS Unit, price AS Price, cost AS Cost, IF(pst_applies,'yes','') AS PST,
+        'catalog' => ['Price list', "SELECT sku AS SKU, name AS Item, description AS Description, kind AS Type, unit AS Unit, price AS Price, cost AS Cost, IF(pst_applies,'yes','') AS PST,
             stock_type AS `Stock link`, CONCAT_WS(' ', eq_make, eq_model) AS `Equipment model`, IF(active,'yes','hidden') AS Active FROM catalog_items ORDER BY kind, name"],
         'tickets' => ['Tickets', "SELECT t.number AS Ticket, t.subject AS Subject, c.name AS Company, s.name AS Site, t.priority AS Priority, t.status AS Status,
             u.name AS Assigned, t.minutes_spent AS Minutes, t.created_at AS Opened, t.first_response_at AS `First response`, t.closed_at AS Closed

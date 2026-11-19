@@ -24,6 +24,8 @@ function export_defs(): array {
         'consumables' => ['Consumables', "SELECT id AS ID, name AS Item, category AS Category, sku AS SKU, unit AS Unit, qty_on_hand AS `On hand`,
             reorder_level AS `Re-order at`, unit_cost AS `Unit cost`, location AS Location, supplier AS Supplier, IF(active, 'yes', 'archived') AS Active
             FROM consumables ORDER BY category, name"],
+        'catalog' => ['Price list', "SELECT sku AS SKU, name AS Item, kind AS Type, unit AS Unit, price AS Price, cost AS Cost, IF(pst_applies,'yes','') AS PST,
+            stock_type AS `Stock link`, CONCAT_WS(' ', eq_make, eq_model) AS `Equipment model`, IF(active,'yes','hidden') AS Active FROM catalog_items ORDER BY kind, name"],
         'tickets' => ['Tickets', "SELECT t.number AS Ticket, t.subject AS Subject, c.name AS Company, s.name AS Site, t.priority AS Priority, t.status AS Status,
             u.name AS Assigned, t.minutes_spent AS Minutes, t.created_at AS Opened, t.first_response_at AS `First response`, t.closed_at AS Closed
             FROM tickets t JOIN companies c ON c.id = t.company_id LEFT JOIN sites s ON s.id = t.site_id LEFT JOIN users u ON u.id = t.assigned_to ORDER BY t.id"],
@@ -55,7 +57,9 @@ function csv_download(string $filename, array $header, iterable $rows): never {
 function h_data(): void {
     require_role('admin');
     $counts = [];
-    foreach (['companies', 'contacts', 'deals', 'sites', 'equipment', 'consumables', 'tickets', 'quotes'] as $t) $counts[$t] = (int)val("SELECT COUNT(*) FROM `$t`");
+    $tables = ['companies' => 'companies', 'contacts' => 'contacts', 'deals' => 'deals', 'sites' => 'sites', 'equipment' => 'equipment',
+               'consumables' => 'consumables', 'catalog' => 'catalog_items', 'tickets' => 'tickets', 'quotes' => 'quotes'];
+    foreach ($tables as $k => $t) $counts[$k] = (int)val("SELECT COUNT(*) FROM `$t`");
     view('data', ['title' => 'Import & export', 'defs' => export_defs(), 'counts' => $counts,
         'files' => one('SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM files'),
         'lastBackup' => setting('last_backup_at'), 'preview' => null]);

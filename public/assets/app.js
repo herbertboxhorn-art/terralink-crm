@@ -174,3 +174,37 @@ document.querySelectorAll('form[data-upload]').forEach(f => {
     f.submit();
   });
 });
+
+// v1.9 price list picker on the quote editor
+(() => {
+  const box = document.getElementById('items'), pick = document.getElementById('cat-pick');
+  if (!box || !pick) return;
+  const cat = JSON.parse(box.dataset.catalog || '[]'), list = document.getElementById('cat-list');
+  const fmt = n => '$' + (+n).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const label = c => `${c.name}${c.sku ? ' · ' + c.sku : ''} — ${fmt(c.unit_price)}${c.unit ? '/' + c.unit : ''}${c.stock !== null ? ` (${+c.stock} free)` : ''}`;
+  cat.forEach(c => { const o = document.createElement('option'); o.value = label(c); list.append(o); });
+  const hint = (tr, id) => {
+    const c = cat.find(x => x.id === +id), h = tr.querySelector('.stockhint');
+    if (!h) return;
+    if (!c || c.stock === null) { h.textContent = ''; return; }
+    const need = parseFloat(tr.querySelector('[name="items[qty][]"]').value) || 0;
+    h.textContent = `${+c.stock} free in stock` + (need > c.stock ? ' — not enough' : '');
+    h.className = 'stockhint ' + (need > c.stock ? 'short' : 'ok');
+  };
+  const refresh = () => box.querySelectorAll('tbody tr').forEach(tr => hint(tr, tr.querySelector('[name="items[catalog_id][]"]').value));
+  pick.addEventListener('change', () => {
+    const c = cat.find(x => label(x) === pick.value);
+    if (!c) return;
+    let tr = [...box.querySelectorAll('tbody tr')].find(r => !r.querySelector('[name="items[description][]"]').value.trim());
+    if (!tr) { box.querySelector('#add-item').click(); tr = [...box.querySelectorAll('tbody tr')].pop(); }
+    const set = (n, v) => { const el = tr.querySelector(`[name="items[${n}][]"]`); if (el) el.value = v; };
+    set('kind', c.kind); set('description', c.description); set('unit', c.unit); set('unit_price', c.unit_price); set('catalog_id', c.id);
+    tr.querySelector('.pstbox').checked = !!c.pst;
+    pick.value = '';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    refresh();
+    tr.querySelector('[name="items[qty][]"]').focus();
+  });
+  box.addEventListener('input', refresh);
+  refresh();
+})();

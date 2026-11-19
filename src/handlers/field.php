@@ -74,7 +74,7 @@ function h_equipment(): void {
         $w = ['c.active = 1']; $p = [];
         if ($term !== '') { $w[] = '(c.name LIKE ? OR c.sku LIKE ? OR c.supplier LIKE ?)'; array_push($p, "%$term%", "%$term%", "%$term%"); }
         if ($f === 'low') $w[] = 'c.reorder_level IS NOT NULL AND c.qty_on_hand <= c.reorder_level';
-        $data['rows'] = all('SELECT c.* FROM consumables c WHERE ' . implode(' AND ', $w) . ' ORDER BY c.category, c.name', $p);
+        $data['rows'] = all('SELECT c.*, (SELECT COALESCE(SUM(r.qty),0) FROM consumable_reservations r WHERE r.consumable_id = c.id) reserved FROM consumables c WHERE ' . implode(' AND ', $w) . ' ORDER BY c.category, c.name', $p);
         $data['value'] = (float)val('SELECT COALESCE(SUM(qty_on_hand * unit_cost),0) FROM consumables WHERE active = 1 AND unit_cost IS NOT NULL');
         view('equipment', $data);
         return;
@@ -88,8 +88,8 @@ function h_equipment(): void {
     if ($tab === 'stock' && $f !== 'all') $w[] = "e.status = 'in_stock'";
     if ($tab === 'installed' && $f === 'warranty') $w[] = "e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 90 DAY";
     if ($tab === 'installed' && $f === 'faulty') $w[] = "e.status = 'faulty'";
-    $data['rows'] = all('SELECT e.*, s.name site, c.name company, c.id company_id FROM equipment e
-                 LEFT JOIN sites s ON s.id = e.site_id LEFT JOIN companies c ON c.id = s.company_id
+    $data['rows'] = all('SELECT e.*, s.name site, c.name company, c.id company_id, rq.number reserved_for FROM equipment e
+                 LEFT JOIN sites s ON s.id = e.site_id LEFT JOIN companies c ON c.id = s.company_id LEFT JOIN quotes rq ON rq.id = e.reserved_quote_id
                  WHERE ' . implode(' AND ', $w) . ' ORDER BY ' . ($tab === 'stock' ? 'e.category, e.make, e.model, e.serial' : 'c.name, s.name, e.category') . ' LIMIT 1000', $p);
     if ($tab === 'stock') {
         $data['summary'] = all("SELECT category, COUNT(*) n, COALESCE(SUM(cost),0) v FROM equipment WHERE site_id IS NULL AND status = 'in_stock' GROUP BY category ORDER BY n DESC");
@@ -199,7 +199,7 @@ function install_items(array $ids, int $siteId, string $date): int {
     foreach ($ids as $id) {
         $e = one("SELECT * FROM equipment WHERE id = ? AND site_id IS NULL AND status = 'in_stock'", [(int)$id]);
         if (!$e) continue;
-        q("UPDATE equipment SET site_id = ?, status = 'active', installed_at = ?, stock_location = NULL WHERE id = ?", [$siteId, $date, $e['id']]);
+        q("UPDATE equipment SET site_id = ?, status = 'active', installed_at = ?, stock_location = NULL, reserved_quote_id = NULL WHERE id = ?", [$siteId, $date, $e['id']]);
         log_activity('system', 'site', $siteId, 'Installed from stock: ' . equip_label($e), (int)$site['company_id']);
         $n++;
     }

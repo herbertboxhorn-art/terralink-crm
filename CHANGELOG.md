@@ -1,5 +1,11 @@
 # TerraLink CRM changelog
 
+## 1.9.0 — 2026-11-19
+- **Price list** (new menu item): standard items and rates with SKU, type, unit, sell price, optional cost (margin shown, never on quotes), PST default, and an optional link to stock (an equipment model or a consumable). Items used on quotes are hidden rather than deleted.
+- **Quote picker:** "Add from price list" on the quote editor fills in the line (text, unit, price, PST) and shows the free stock under it, in red when there isn't enough
+- **Stock on quotes:** a "Stock for this quote" card shows need / reserved / free / short for each stocked item, with **Reserve stock** and **Release** buttons. Stock is reserved automatically when a quote is accepted and released when it's declined, expires or is deleted; installing a reserved unit uses up its reservation.
+- Inventory shows "Reserved · Q-…" on stock items and reserved/free amounts on consumables. "+ Add to price list" from a consumable. Price list CSV export.
+
 ## 1.8.0 — 2026-11-19
 - **Email quotes:** "Email to client" on a quote sends a message with the quote PDF attached, from noreply@ with replies going to you, with an optional copy to yourself. A draft quote becomes Sent and its deal moves to Quoted; the email is logged on the quote.
 - **Service plans** (new menu item): recurring visits (monthly to yearly) per company or site, with a checklist, assignee, priority and an optional fee. A ticket opens automatically N days before each visit, and plans keep their day of the month (the 31st stays at month end). "Open ticket now" is available on each plan. Shows recurring revenue per month; plan cards appear on company and site pages.

@@ -6,10 +6,14 @@
 </div>
 
 <div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-  <div class="stat<?= $low ? ' hot' : '' ?>"><small>On hand</small><b><?= h(qty_fmt($c['qty_on_hand'])) ?> <span style="font-size:16px"><?= h($c['unit']) ?></span></b><span><?= $low ? '⚠ at or below re-order level' : 'in stock' ?></span></div>
+  <div class="stat<?= $low ? ' hot' : '' ?>"><small>On hand</small><b><?= h(qty_fmt($c['qty_on_hand'])) ?> <span style="font-size:16px"><?= h($c['unit']) ?></span></b><span><?= $low ? '⚠ at or below re-order level' : 'in stock' ?><?php $rsv = array_sum(array_column($res, 'qty')); if ($rsv): ?> · <?= h(qty_fmt($rsv)) ?> reserved, <?= h(qty_fmt($c['qty_on_hand'] - $rsv)) ?> free<?php endif; ?></span></div>
   <div class="stat"><small>Re-order at</small><b><?= $c['reorder_level'] !== null ? h(qty_fmt($c['reorder_level'])) : '—' ?></b><span><?= h($c['supplier'] ?: 'no supplier set') ?></span></div>
   <div class="stat"><small>Value on hand</small><b><?= $c['unit_cost'] !== null ? h(money($c['qty_on_hand'] * $c['unit_cost'])) : '—' ?></b><span><?= $c['unit_cost'] !== null ? h(money($c['unit_cost'])) . ' / ' . h($c['unit']) : 'no cost set' ?></span></div>
 </div>
+<?php if ($res): ?><div class="card" style="margin-bottom:18px"><h2>Reserved for quotes</h2><ul class="list"><?php foreach ($res as $r): ?>
+  <li><span class="pill <?= h($r['status']) ?>"><?= h(QUOTE_STATUS[$r['status']]) ?></span><div class="grow"><a href="/quotes/<?= (int)$r['id'] ?>#stock"><?= h($r['number']) ?> · <?= h($r['title']) ?></a></div><b><?= h(qty_fmt($r['qty'])) ?> <?= h($c['unit']) ?></b></li>
+<?php endforeach; ?></ul></div><?php endif; ?>
+<?php if (is_role('admin', 'sales') && !val('SELECT id FROM catalog_items WHERE consumable_id = ?', [$id])): ?><p class="muted" style="font-size:13px;margin:-6px 0 14px"><a href="/catalog/new?link=c:<?= $id ?>">+ Add to price list</a> so it can be picked on quotes.</p><?php endif; ?>
 
 <div class="grid side">
   <div class="card">

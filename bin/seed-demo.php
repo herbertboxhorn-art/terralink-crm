@@ -7,7 +7,7 @@ if (!IS_DEV) { fwrite(STDERR, "Refusing: APP_ENV is not development.\n"); exit(1
 
 $pdo = db();
 $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-foreach (['service_plans', 'files', 'mail_log', 'password_resets', 'consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
+foreach (['consumable_reservations', 'catalog_items', 'service_plans', 'files', 'mail_log', 'password_resets', 'consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
 $pdo->exec("UPDATE counters SET value = 0");
 $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 
@@ -108,5 +108,16 @@ foreach ([['UniFi','Ubiquiti','U6 Pro AP','U6P-STK-01',189],['UniFi','Ubiquiti',
 foreach ([['Cat6 outdoor cable (demo)','Cable','ft',1000,250,0.45],['RJ45 shielded connectors (demo)','Connectors','ea',40,50,0.6],['J-mount pole brackets (demo)','Mounting','ea',3,2,24]] as [$n, $cat, $u, $qty, $re, $cost]) {
   q('INSERT INTO consumables (name, category, unit, reorder_level, unit_cost, location) VALUES (?,?,?,?,?,?)', [$n, $cat, $u, $re, $cost, 'Shop']);
   consumable_move((int)$pdo->lastInsertId(), $qty, 'received', null, null, 'Opening stock');
+}
+// Price list (demo)
+foreach ([
+  ['UNI-U6PRO', 'UniFi U6 Pro access point', 'hardware', 'ea', 289, 215, 1, 'equipment', 'UniFi', 'Ubiquiti', 'U6 Pro AP', null],
+  ['STL-STD', 'Starlink Standard Kit', 'hardware', 'ea', 499, 449, 1, 'equipment', 'Starlink kit', 'Starlink', 'Standard Kit', null],
+  ['CAT6-OUT', 'Cat6 outdoor cable', 'hardware', 'ft', 1.10, 0.45, 1, 'consumable', null, null, null, 'Cat6 outdoor cable (demo)'],
+  ['LAB-STD', 'Labour — technician', 'labour', 'h', 115, null, 0, 'none', null, null, null, null],
+  ['SUP-MON', 'Managed support — monthly', 'other', 'mo', 149, null, 0, 'none', null, null, null, null],
+] as [$sku, $n, $k, $u, $p, $c, $pst, $st, $cat, $mk, $md, $cons]) {
+  q('INSERT INTO catalog_items (sku, name, kind, unit, price, cost, pst_applies, stock_type, eq_category, eq_make, eq_model, consumable_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+    [$sku, $n, $k, $u, $p, $c, $pst, $st, $cat, $mk, $md, $cons ? val('SELECT id FROM consumables WHERE name = ?', [$cons]) : null]);
 }
 echo "Demo data loaded. Sign in as herb@terralinksystems.com / demo-password-123\n";

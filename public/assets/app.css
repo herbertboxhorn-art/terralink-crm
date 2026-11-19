@@ -326,3 +326,9 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .datagrid .btn{justify-content:space-between}
 .imp td.act{white-space:nowrap;font-weight:600;font-size:13px}
 .imp tr.new td.act{color:var(--ok)} .imp tr.add td.act{color:var(--info)} .imp tr.skip td.act,.imp tr.err td.act{color:var(--bad)}
+
+/* v1.9 price list / stock */
+.picker{display:flex;gap:10px;align-items:center;margin:4px 0 12px}
+.picker input{flex:1;min-height:42px;border:1px solid var(--line-strong);border-radius:8px;padding:0 12px;background:var(--input);color:var(--ink);font:inherit}
+.stockhint{display:block;font-size:12px;margin-top:3px}.stockhint.ok{color:var(--ok)}.stockhint.short{color:var(--bad);font-weight:600}
+.stockrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.stockrow:last-child{border-bottom:0}

@@ -143,5 +143,43 @@ function migrations(): array {
             if (!col_exists('tickets', 'plan_id')) db()->exec('ALTER TABLE tickets ADD COLUMN plan_id INT UNSIGNED NULL AFTER equipment_id, ADD INDEX idx_ticket_plan (plan_id)');
             if (!col_exists('users', 'daily_email')) db()->exec('ALTER TABLE users ADD COLUMN daily_email TINYINT(1) NOT NULL DEFAULT 1 AFTER active');
         },
+        // 1.9.0 — price list, quote lines linked to it, stock reservations for quotes
+        '1.9.0' => function (): void {
+            if (!table_exists('catalog_items')) db()->exec("CREATE TABLE catalog_items (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                sku VARCHAR(60) NULL,
+                name VARCHAR(190) NOT NULL,
+                description VARCHAR(255) NULL,
+                kind ENUM('labour','hardware','software','travel','other') NOT NULL DEFAULT 'hardware',
+                unit VARCHAR(20) NULL,
+                price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                cost DECIMAL(10,2) NULL,
+                pst_applies TINYINT(1) NOT NULL DEFAULT 0,
+                stock_type ENUM('none','equipment','consumable') NOT NULL DEFAULT 'none',
+                eq_category VARCHAR(80) NULL,
+                eq_make VARCHAR(80) NULL,
+                eq_model VARCHAR(120) NULL,
+                consumable_id INT UNSIGNED NULL,
+                active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_cat_name (active, name),
+                CONSTRAINT fk_cat_consumable FOREIGN KEY (consumable_id) REFERENCES consumables(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            if (!col_exists('quote_items', 'catalog_id')) db()->exec('ALTER TABLE quote_items ADD COLUMN catalog_id INT UNSIGNED NULL AFTER quote_id, ADD INDEX idx_qi_catalog (catalog_id)');
+            if (!col_exists('equipment', 'reserved_quote_id')) db()->exec('ALTER TABLE equipment ADD COLUMN reserved_quote_id INT UNSIGNED NULL AFTER status, ADD INDEX idx_eq_reserved (reserved_quote_id),
+                ADD CONSTRAINT fk_eq_reserved FOREIGN KEY (reserved_quote_id) REFERENCES quotes(id) ON DELETE SET NULL');
+            if (!table_exists('consumable_reservations')) db()->exec("CREATE TABLE consumable_reservations (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                quote_id INT UNSIGNED NOT NULL,
+                consumable_id INT UNSIGNED NOT NULL,
+                qty DECIMAL(10,2) NOT NULL,
+                created_by INT UNSIGNED NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_res (quote_id, consumable_id),
+                CONSTRAINT fk_res_quote FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE,
+                CONSTRAINT fk_res_cons FOREIGN KEY (consumable_id) REFERENCES consumables(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        },
     ];
 }

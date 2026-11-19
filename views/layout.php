@@ -54,6 +54,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
   <a href="/tasks"<?= $active('/tasks') ?>><?= $icon('check') ?>Tasks<?php if ($myTasks): ?><em><?= $myTasks ?></em><?php endif; ?></a>
   <a href="/equipment"<?= $active('/equipment') . $active('/sites') . $active('/consumables') ?>><?= $icon('router') ?>Inventory<?php if ($lowStock): ?><em title="Low stock"><?= $lowStock ?></em><?php endif; ?></a>
   <a href="/quotes"<?= $active('/quotes') ?>><?= $icon('doc') ?>Quotes</a>
+  <a href="/catalog"<?= $active('/catalog') ?>><?= $icon('tag') ?>Price list</a>
   <?php if (function_exists('h_plans')): ?><a href="/plans"<?= $active('/plans') ?>><?= $icon('repeat') ?>Service plans</a><?php endif; ?>
   <div class="ver">v<?= APP_VERSION ?></div>
 </nav>

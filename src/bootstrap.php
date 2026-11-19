@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const SCHEMA_VERSION = '1.3.0';
 const APP_ROOT = __DIR__ . '/..';
 
@@ -61,6 +61,8 @@ function db(): PDO {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
     ]);
+    // Match the tables' collation so string comparisons never mix rules (shared MySQL/MariaDB defaults differ)
+    $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     $pdo->exec("SET time_zone = '" . (new DateTime())->format('P') . "'");
     return $pdo;
 }

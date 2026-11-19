@@ -1,4 +1,4 @@
-# TerraLink CRM v1.4.0
+# TerraLink CRM v1.4.2
 
 A self-hosted CRM for TerraLink Systems, built with PHP 8.3 and MySQL 8.4 in the Backcountry Pro look. It runs on desktop and on phones in the field.
 
@@ -19,7 +19,7 @@ Open the setup link with the host changed to `http://localhost:8080`, then creat
 
 This runs on Hostinger **web hosting** (account `u300896537`) as the site **crm.terralinksystems.com**, next to the WordPress site.
 
-- **Code:** hPanel Git deploy clones the **`hosting`** branch of this repo into `public_html/app`, and `public_html/.htaccess` maps every request into `app/public/`. That branch is `master` plus the `vendor/` folder, because shared hosting can't run composer. The root `.htaccess` maps every request into `public/`, so `src/`, `vendor/`, `sql/` and `.git` can never be served.
+- **Code:** hPanel Git deploy clones the **`hosting`** branch of this repo into `public_html/crm`, and `public_html/.htaccess` maps every request into `crm/public/`. That branch is `master` plus the `vendor/` folder, because shared hosting can't run composer. The root `.htaccess` maps every request into `public/`, so `src/`, `vendor/`, `sql/` and `.git` can never be served.
 - **Settings and passwords** live in `/home/u300896537/domains/crm.terralinksystems.com/crm-config.php`. That's outside `public_html` and never in git. It holds the DB credentials, the n8n API key and the first-run setup token hash.
 - **Database:** MySQL on the hosting account. Tables are created and updated automatically on the first request after a deploy.
 - **First admin:** a one-time setup link (48 h). It's only usable while no users exist.

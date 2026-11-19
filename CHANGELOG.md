@@ -1,5 +1,9 @@
 # TerraLink CRM changelog
 
+## 1.11.0 — 2026-11-19
+- **Plan templates** (Service plans → Templates): standard plans with a title, frequency, ticket lead time, priority, fee per visit, fee note and tech checklist. On a new plan, "Start from a template" fills everything in; you pick the company, site and first visit date. Editing a template doesn't change plans already made from it.
+- Comes with TerraLink's eight standard plans: Network Care check, Managed IT site visit, Managed IT remote review, IT planning meeting, Backup restore test, Starlink seasonal check, Automation health review, Private AI Server maintenance.
+
 ## 1.10.0 — 2026-11-19
 - **Price list import** (admins): "Import price list from CSV" on the Price list page adds new items and updates existing ones, matched by SKU, then by name. Uses the same columns as the price list export; stock links are kept.
 - Price list CSV export now includes the Description column.

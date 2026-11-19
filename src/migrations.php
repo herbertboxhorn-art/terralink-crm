@@ -181,5 +181,40 @@ function migrations(): array {
                 CONSTRAINT fk_res_cons FOREIGN KEY (consumable_id) REFERENCES consumables(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         },
+        // 1.11.0 — service plan templates (seeded with TerraLink's standard plans)
+        '1.11.0' => function (): void {
+            if (table_exists('plan_templates')) return;
+            db()->exec("CREATE TABLE plan_templates (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(120) NOT NULL,
+                title VARCHAR(190) NOT NULL,
+                description TEXT NULL,
+                every_months TINYINT UNSIGNED NOT NULL DEFAULT 3,
+                lead_days SMALLINT UNSIGNED NOT NULL DEFAULT 7,
+                priority ENUM('low','normal','high','urgent') NOT NULL DEFAULT 'normal',
+                fee DECIMAL(10,2) NOT NULL DEFAULT 0,
+                fee_note VARCHAR(190) NULL,
+                active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            foreach (plan_template_seed() as $t) {
+                q('INSERT INTO plan_templates (name, title, description, every_months, lead_days, priority, fee, fee_note) VALUES (?,?,?,?,?,?,?,?)', $t);
+            }
+        },
+    ];
+}
+
+/** TerraLink's standard plans (Nov 2026 price list). Fees are per visit: monthly price × months between visits. */
+function plan_template_seed(): array {
+    return [
+        ['Network Care check', 'Quarterly network check', "- Update UniFi firmware (gateway, switches, APs)\n- Download UniFi config backup and store it\n- Check AP and switch health, client counts, errors\n- Speed test and note the result\n- Camera NVR: storage days, all cameras recording\n- UPS: battery test and runtime\n- Note anything that needs a quote", 3, 7, 'normal', 297.00, 'Network Care $99/site/mo × 3 months'],
+        ['Managed IT site visit', 'Monthly on-site IT visit', "- Walk-through with the office contact: open issues\n- Patch status on all computers\n- Review backup jobs (any failures this month?)\n- Check printers and shared devices\n- Antivirus/EDR alerts reviewed\n- Note hardware due for replacement", 1, 5, 'normal', 0.00, 'Set to users × per-user rate (Standard $105, Complete $150)'],
+        ['Managed IT remote review', 'Quarterly remote IT review', "- Patch report for all computers\n- Antivirus/EDR alerts and quarantines\n- Disk health and free space\n- Licence check (Microsoft 365 / Google Workspace)\n- Send the client a short summary", 3, 7, 'normal', 0.00, 'Set to users × $65 × 3 months (Essentials)'],
+        ['IT planning meeting', 'Quarterly IT planning meeting', "- Book a meeting with the owner\n- Review: hardware coming due, risks, incidents this quarter\n- Budget for next quarter\n- Ideas: automation / AI that could save time\n- Send notes and any quotes afterwards", 3, 14, 'low', 0.00, 'Included in Managed IT Complete — leave at $0'],
+        ['Backup restore test', 'Yearly backup restore test', "- Restore a sample of real files to a test folder\n- Restore one mailbox item (M365 / Workspace)\n- Check the oldest restore point available\n- Write down what was restored, how long it took, any problems\n- Tell the client the result", 12, 14, 'normal', 0.00, 'Included in managed IT — leave at $0'],
+        ['Starlink seasonal check', 'Starlink seasonal check (spring / fall)', "- Mount: tight, no movement, snow-shedding position clear\n- Cable entries sealed, cable not chafed\n- Obstruction map in the Starlink app\n- Failover test: unplug main line, confirm switch-over and back\n- Firmware up to date\n- Power draw OK on generator/solar sites\nSet the next visit date in April or October.", 6, 14, 'normal', 270.00, 'Starlink monitoring $45/site/mo × 6 months'],
+        ['Automation health review', 'Monthly automation health review', "- Check n8n executions: any failed runs this month?\n- API keys / tokens about to expire\n- Workflows the client asked to change (4 hrs/month included)\n- Confirm monitoring alerts still reach us\n- Send a short monthly summary", 1, 3, 'normal', 1250.00, 'Automation Package $1,250/mo'],
+        ['Private AI Server maintenance', 'Monthly Private AI Server maintenance', "- OS and security patches\n- Update models / runtime if a new version is approved\n- Disk space, GPU temperatures, fans\n- Backups of configuration and data\n- Test one prompt end to end", 1, 3, 'normal', 350.00, 'Private AI Server support $350/mo'],
     ];
 }

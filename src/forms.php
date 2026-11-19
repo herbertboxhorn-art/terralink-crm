@@ -138,6 +138,17 @@ function entity_def_raw(string $name, array $ctx = []): array {
             'active'       => ['Active — create tickets automatically', 'checkbox', 'default' => 1],
             'description'  => ['Checklist / notes for the tech', 'textarea', 'placeholder' => "e.g.\n- Check Starlink obstruction & firmware\n- Reboot UniFi gateway, update\n- Test backups"],
         ]],
+        'plan_template' => ['table' => 'plan_templates', 'label' => 'Plan template', 'fields' => [
+            'name'         => ['Template name', 'text', 'required' => true, 'placeholder' => 'e.g. Network Care check'],
+            'title'        => ['Plan title it fills in', 'text', 'required' => true, 'placeholder' => 'e.g. Quarterly network check'],
+            'every_months' => ['How often', 'select', 'options' => PLAN_EVERY, 'int' => true, 'default' => 3],
+            'lead_days'    => ['Open the ticket this many days before', 'number', 'int' => true, 'default' => 7],
+            'priority'     => ['Ticket priority', 'select', 'options' => TICKET_PRIORITY, 'default' => 'normal'],
+            'fee'          => ['Fee per visit (monthly price × months between visits)', 'money'],
+            'fee_note'     => ['Fee note (shown when the template is used)', 'text', 'placeholder' => 'e.g. Network Care $99/site/mo × 3 months'],
+            'active'       => ['Active (shows in the template list)', 'checkbox', 'default' => 1],
+            'description'  => ['Checklist for the tech', 'textarea'],
+        ]],
         'quote' => ['table' => 'quotes', 'label' => 'Quote', 'fields' => [
             'title'       => ['Quote title', 'text', 'required' => true, 'placeholder' => 'e.g. Starlink + UniFi install — Camp 3'],
             'company_id'  => ['Company', 'select', 'options' => company_opts(), 'int' => true, 'required' => true],

@@ -4,6 +4,22 @@
     <?php if (!empty($subtitle)): ?><div class="sub"><?= h($subtitle) ?></div><?php endif; ?>
   </div>
 </div>
+<?php if (!empty($templatePicker) && $templatePicker['opts']): $tp = $templatePicker; ?>
+<div class="card" style="max-width:860px;margin-bottom:12px;padding:14px 18px">
+  <form method="get" class="actions" style="flex-wrap:wrap;gap:10px;align-items:center">
+    <label for="tpl" style="font-weight:600">Start from a template</label>
+    <?php if ($tp['company_id']): ?><input type="hidden" name="company_id" value="<?= (int)$tp['company_id'] ?>"><?php endif; ?>
+    <?php if ($tp['site_id']): ?><input type="hidden" name="site_id" value="<?= (int)$tp['site_id'] ?>"><?php endif; ?>
+    <select id="tpl" name="template" style="min-height:42px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--input)">
+      <option value="">— Choose —</option>
+      <?php foreach ($tp['opts'] as $o): ?><option value="<?= (int)$o['id'] ?>"<?= ($tp['current']['id'] ?? 0) == $o['id'] ? ' selected' : '' ?>><?= h($o['name']) ?> · <?= h(PLAN_EVERY[(int)$o['every_months']] ?? '') ?></option><?php endforeach; ?>
+    </select>
+    <button class="btn" type="submit">Use template</button>
+    <a class="muted" href="/plans/templates" style="font-size:13px">Manage templates</a>
+  </form>
+  <?php if (!empty($tp['current'])): ?><p class="muted" style="margin:8px 0 0;font-size:13px">Filled in from <b><?= h($tp['current']['name']) ?></b>. Pick the company and the first visit date, then save.<?= $tp['current']['fee_note'] ? ' Fee: ' . h($tp['current']['fee_note']) . '.' : '' ?></p><?php endif; ?>
+</div>
+<?php endif; ?>
 <div class="card" style="max-width:860px">
   <form method="post" class="form"<?= !empty($dependent) ? ' data-dependent' : '' ?> novalidate>
     <?= csrf_field() ?>

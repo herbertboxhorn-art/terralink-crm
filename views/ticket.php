@@ -35,6 +35,7 @@
       <dl class="kv">
         <?php if ($t['first_name']): ?><dt>Reported by</dt><dd><a href="/contacts/<?= (int)$t['contact_id'] ?>"><?= h(trim($t['first_name'] . ' ' . $t['last_name'])) ?></a><br><?= tel($t['ct_mobile'] ?: $t['ct_phone']) ?></dd><?php endif; ?>
         <?php if ($t['equipment_id']): ?><dt>Device</dt><dd><?= h(trim($t['e_cat'] . ' ' . $t['e_make'] . ' ' . $t['e_model'])) ?><?= $t['e_serial'] ? '<br><span class="mono">S/N ' . h($t['e_serial']) . '</span>' : '' ?></dd><?php endif; ?>
+        <?php if (!empty($t['plan_id'])): ?><dt>Service plan</dt><dd><a href="/plans/<?= (int)$t['plan_id'] ?>/edit"><?= h($t['plan_title'] ?? 'View plan') ?></a></dd><?php endif; ?>
         <dt>Assigned</dt><dd><?= avatar($t['assignee'], $t['assigned_to']) ?> <?= h($t['assignee'] ?? 'Unassigned') ?></dd>
         <dt>Time spent</dt><dd><?= $m ? '<b>' . h(dur($m)) . '</b>' : '—' ?></dd>
         <dt>Response target</dt><dd><?= sla_badge($t) ?: ($t['first_response_at'] ? 'Responded ' . h(ago($t['first_response_at'])) : '—') ?> <small class="muted">(<?= sla_hours($t['priority']) ?> h for <?= h(strtolower(TICKET_PRIORITY[$t['priority']])) ?>)</small></dd>

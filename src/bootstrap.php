@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.7.0';
-const SCHEMA_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
+const SCHEMA_VERSION = '1.8.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -236,3 +236,4 @@ require __DIR__ . '/constants.php';
 require __DIR__ . '/forms.php';
 require __DIR__ . '/services.php';
 require __DIR__ . '/files.php';
+require __DIR__ . '/automation.php';

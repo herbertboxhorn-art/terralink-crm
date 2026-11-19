@@ -14,6 +14,12 @@ function api_dispatch(string $method, string $path): void {
         try { val('SELECT 1'); json_out(['ok' => true, 'version' => APP_VERSION, 'storage' => is_writable(upload_dir())]); }
         catch (Throwable) { json_out(['ok' => false], 503); }
     }
+    if ($method === 'POST' && $path === '/api/cron/daily') {
+        api_auth();
+        @set_time_limit(120);
+        try { json_out(cron_daily(($_GET['force'] ?? '') === '1')); }
+        catch (Throwable $e) { error_log('cron: ' . $e); json_out(['ok' => false, 'detail' => get_class($e) . ': ' . $e->getMessage()], 500); }
+    }
     if ($method === 'POST' && $path === '/api/leads') {
         api_auth();
         // Caller is authenticated (our own n8n), so it may see the real reason for a failure.

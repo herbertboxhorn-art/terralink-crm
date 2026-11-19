@@ -55,6 +55,14 @@ The CRM sends email (password resets, invites, and later quotes and reminders) b
 - **Where uploads are stored:** in `crm-uploads/`, next to `crm-config.php` (outside `public_html`). You can override this with `UPLOAD_DIR`. Locally they go to `storage/uploads`. `/api/health` shows `"storage": true` when that folder is writable.
 - **Backups:** go to **Import & export** (avatar menu) and download the database (.sql.gz) and the photos and files (.zip). To restore, open hPanel → phpMyAdmin → Import.
 
+## 3d. Daily jobs
+The n8n workflow **"TerraLink CRM — Daily Jobs"** (`tV6eohTXFDK2oDpy`) runs at 6:30 am Vancouver time and calls `POST /api/cron/daily` with the `X-CRM-Key` header. Each run:
+- Opens tickets for service plans that are due.
+- Sends the morning summary emails.
+- Cleans up old password-reset links.
+
+It only runs once per day. To run it again the same day, add `?force=1`.
+
 ## 4. Roles
 
 | Role  | Can do |

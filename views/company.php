@@ -52,6 +52,7 @@
       </div>
       <?php endif; ?>
       <?php $link = ['company_id' => $id]; $back = "/companies/$id"; require __DIR__ . '/_tasks.php'; ?>
+      <?php $pl = plans_for('company_id', $id); $newUrl = "/plans/new?company_id=$id"; require __DIR__ . '/_plans.php'; ?>
       <?php $ftype = 'company'; $fid = $id; require __DIR__ . '/_files.php'; ?>
     </div>
   </div>

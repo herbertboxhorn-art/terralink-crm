@@ -7,7 +7,7 @@ if (!IS_DEV) { fwrite(STDERR, "Refusing: APP_ENV is not development.\n"); exit(1
 
 $pdo = db();
 $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-foreach (['consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
+foreach (['service_plans', 'files', 'mail_log', 'password_resets', 'consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
 $pdo->exec("UPDATE counters SET value = 0");
 $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 

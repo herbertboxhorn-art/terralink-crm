@@ -1,5 +1,11 @@
 # TerraLink CRM changelog
 
+## 1.8.0 — 2026-11-19
+- **Email quotes:** "Email to client" on a quote sends a message with the quote PDF attached, from noreply@ with replies going to you, with an optional copy to yourself. A draft quote becomes Sent and its deal moves to Quoted; the email is logged on the quote.
+- **Service plans** (new menu item): recurring visits (monthly to yearly) per company or site, with a checklist, assignee, priority and an optional fee. A ticket opens automatically N days before each visit, and plans keep their day of the month (the 31st stays at month end). "Open ticket now" is available on each plan. Shows recurring revenue per month; plan cards appear on company and site pages.
+- **Morning summary email (6:30 am):** your tickets (overdue ones flagged), tasks due or overdue, new leads, quotes about to expire and low stock. It's skipped when there's nothing for you, and each person can turn it off under My account.
+- New n8n workflow "TerraLink CRM — Daily Jobs" calls `POST /api/cron/daily` (X-CRM-Key) every morning; the run is safe to repeat (once per day)
+
 ## 1.7.0 — 2026-11-19
 - **Photos & files** on companies, sites, deals, quotes, tickets and equipment: snap a photo on the phone or attach PDFs and Office files (25 MB each). Photos are turned upright, shrunk to 2560 px and get thumbnails. Files live outside the website folder and only open for signed-in users. The uploader or an admin can delete them, and they're removed when their record is deleted.
 - **Import & export** (avatar menu, admins): CSV export of companies, contacts, deals, sites, equipment, consumables, tickets and quotes (Excel-safe); import companies and contacts from a template, Outlook or Google export, with a preview showing what will be created, added or skipped

@@ -9,3 +9,11 @@
     <div class="formbar"><button class="btn primary" type="submit">Change password</button></div>
   </form>
 </div>
+<div class="card" style="max-width:520px;margin-top:16px">
+  <h2>Morning summary email</h2>
+  <p class="muted" style="margin:6px 0 12px">Around 6:30 am: your tickets, tasks due, new leads and anything overdue. Not sent on days with nothing for you.</p>
+  <form method="post" class="actions"><?= csrf_field() ?><input type="hidden" name="prefs" value="1">
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="daily_email" value="1"<?= !empty(user()['daily_email']) ? ' checked' : '' ?>> Send me the morning summary</label>
+    <button class="btn" type="submit">Save</button>
+  </form>
+</div>

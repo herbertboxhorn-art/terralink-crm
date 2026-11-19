@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.4.2';
-const SCHEMA_VERSION = '1.3.0';
+const APP_VERSION = '1.5.0';
+const SCHEMA_VERSION = '1.5.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -71,12 +71,25 @@ function all(string $sql, array $p = []): array { return q($sql, $p)->fetchAll()
 function one(string $sql, array $p = []): ?array { $r = q($sql, $p)->fetch(); return $r ?: null; }
 function val(string $sql, array $p = []): mixed { $r = q($sql, $p)->fetchColumn(); return $r === false ? null : $r; }
 
-/** Applies sql/*.sql when the current schema version is missing (shared hosting has no CLI step). */
+/** Brings the database up to SCHEMA_VERSION: base schema (sql/*.sql) + versioned migrations. Cheap no-op when current. */
 function ensure_schema(): void {
+    $has = function (string $v): bool {
+        try { return (bool)val('SELECT 1 FROM schema_version WHERE version = ?', [$v]); }
+        catch (PDOException) { return false; }   // table missing → fresh database
+    };
+    if ($has(SCHEMA_VERSION)) return;
+    if (!val("SELECT GET_LOCK('terralink_crm_migrate', 30)")) throw new RuntimeException('Could not get migration lock');
     try {
-        if (val('SELECT 1 FROM schema_version WHERE version = ?', [SCHEMA_VERSION])) return;
-    } catch (PDOException) { /* table missing → fresh database */ }
-    foreach (glob(APP_ROOT . '/sql/*.sql') as $f) db()->exec(file_get_contents($f));
+        if (!$has('1.3.0')) foreach (glob(APP_ROOT . '/sql/*.sql') as $f) db()->exec(file_get_contents($f));
+        require_once __DIR__ . '/migrations.php';
+        foreach (migrations() as $v => $fn) {
+            if ($has($v)) continue;
+            $fn();
+            q('INSERT IGNORE INTO schema_version (version) VALUES (?)', [$v]);
+        }
+    } finally {
+        val("SELECT RELEASE_LOCK('terralink_crm_migrate')");
+    }
 }
 
 function setting(string $k, string $default = ''): string {

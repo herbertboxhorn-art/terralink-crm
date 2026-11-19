@@ -75,4 +75,15 @@ $wonVal = (float)val("SELECT COALESCE(SUM(value),0) FROM deals WHERE stage = 'wo
       <?php endforeach; ?>
     </ul><?php endif; ?>
   </div>
+  <?php if ($lowStock): ?>
+  <div class="card">
+    <div class="cardhead"><h2>Low stock — re-order</h2><a href="/equipment?tab=consumables&amp;f=low">Consumables →</a></div>
+    <ul class="list">
+      <?php foreach ($lowStock as $c): ?>
+      <li><div class="grow"><a href="/consumables/<?= (int)$c['id'] ?>"><?= h($c['name']) ?></a><span class="meta">Re-order at <?= h(qty_fmt($c['reorder_level'])) ?> <?= h($c['unit']) ?></span></div>
+        <span class="pill <?= (float)$c['qty_on_hand'] <= 0 ? 'urgent' : 'high' ?>"><?= h(qty_fmt($c['qty_on_hand'])) ?> <?= h($c['unit']) ?> left</span></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+  <?php endif; ?>
 </div>

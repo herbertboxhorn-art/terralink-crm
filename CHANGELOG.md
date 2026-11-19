@@ -1,5 +1,12 @@
 # TerraLink CRM changelog
 
+## 1.5.0 — 2026-11-19
+- **Inventory:** equipment can be in stock without a site (location, supplier, purchase date, cost); Inventory page with Installed / In stock / Consumables tabs and stock value by category
+- **Receive stock:** bulk-add one model by pasting/scanning serials (or a quantity)
+- **Install** a stock item at a site from the item, or pick several from stock on the site page; **Return to stock** (optionally as faulty); deleting a site returns its gear to stock
+- **Consumables:** count-only items (cable, connectors, mounts…) with receive / use at site / stock count, history, re-order levels, low-stock alerts on dashboard and menu
+- Stock locations configurable in Settings; versioned migrations (`src/migrations.php`) run automatically and safely re-run
+
 ## 1.4.2 — 2026-11-19
 - DB connection forces utf8mb4_unicode_ci (fixes "Illegal mix of collations" on Hostinger MySQL); leads duplicate check rewritten
 

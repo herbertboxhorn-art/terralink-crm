@@ -6,7 +6,7 @@
     <div class="sub"><?php if ($s['connectivity']): ?><span class="pill ind"><?= h($s['connectivity']) ?></span><?php endif; ?><span><?= h($addr) ?></span></div>
   </div>
   <div class="actions">
-    <a class="btn primary" href="/equipment/new?site_id=<?= $id ?>">+ Equipment</a>
+    <a class="btn primary" href="/sites/<?= $id ?>/add-equipment">+ Equipment</a>
     <a class="btn" href="/tickets/new?site_id=<?= $id ?>">+ Ticket</a>
     <a class="btn" href="/sites/<?= $id ?>/edit">Edit</a>
   </div>
@@ -20,7 +20,7 @@
 <?php if ($s['access_notes']): ?><div class="notice"><b>Access:</b> <span style="white-space:pre-wrap"><?= h($s['access_notes']) ?></span></div><?php endif; ?>
 
 <div class="card" id="equipment" style="margin-bottom:18px">
-  <div class="cardhead"><h2>Installed equipment</h2><a class="btn sm" href="/equipment/new?site_id=<?= $id ?>">+ Add</a></div>
+  <div class="cardhead"><h2>Installed equipment</h2><a class="btn sm" href="/sites/<?= $id ?>/add-equipment">+ Add (from stock or new)</a></div>
   <?php if (!$equipment): ?><div class="empty">No equipment recorded yet.</div><?php else: ?>
   <div class="tablewrap"><table class="t cards">
     <thead><tr><th>Device</th><th>Serial / MAC</th><th>IP / Number</th><th>Installed</th><th>Warranty</th><th>Status</th><th></th></tr></thead>
@@ -32,10 +32,30 @@
         <td data-l="Installed"><?= h(fdate($e['installed_at'], 'M j, Y')) ?></td>
         <td data-l="Warranty"<?= $wexp ? ' style="color:var(--bad)"' : '' ?>><?= h(fdate($e['warranty_until'], 'M j, Y')) ?></td>
         <td><span class="pill <?= h($e['status']) ?>"><?= h(EQUIP_STATUS[$e['status']]) ?></span></td>
-        <td class="num"><a href="/equipment/<?= (int)$e['id'] ?>/edit">Edit</a> · <a href="/tickets/new?site_id=<?= $id ?>&amp;equipment_id=<?= (int)$e['id'] ?>">Ticket</a></td>
+        <td class="num"><a href="/equipment/<?= (int)$e['id'] ?>/edit">Edit</a> · <a href="/tickets/new?site_id=<?= $id ?>&amp;equipment_id=<?= (int)$e['id'] ?>">Ticket</a>
+          <form method="post" action="/equipment/<?= (int)$e['id'] ?>/return" style="display:inline" data-confirm="Remove this device from the site and put it back in stock (<?= h(stock_locations()[0]) ?>)?"><?= csrf_field() ?>
+            · <button class="linkbtn" type="submit" style="color:var(--info)">To stock</button></form></td>
       </tr>
     <?php endforeach; ?></tbody>
   </table></div><?php endif; ?>
+</div>
+
+<div class="card" id="consumables" style="margin-bottom:18px">
+  <div class="cardhead"><h2>Consumables used here</h2></div>
+  <?php if ($consumables): ?>
+  <form method="post" action="/consumables/move" class="inline" style="margin-bottom:14px"><?= csrf_field() ?>
+    <input type="hidden" name="reason" value="used"><input type="hidden" name="site_id" value="<?= $id ?>"><input type="hidden" name="back" value="/sites/<?= $id ?>#consumables">
+    <div class="row">
+      <select name="consumable_id" aria-label="Item" required><?php foreach ($consumables as $c): ?><option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?> (<?= h(qty_fmt($c['qty_on_hand'])) ?> <?= h($c['unit']) ?> left)</option><?php endforeach; ?></select>
+      <input type="number" step="0.01" min="0.01" inputmode="decimal" name="qty" placeholder="Qty" required style="max-width:110px">
+      <button class="btn dark" type="submit">Log use</button>
+    </div>
+    <input name="note" placeholder="Note (optional), e.g. new run to shop">
+  </form>
+  <?php else: ?><p class="muted" style="margin:0 0 10px">Add consumables under <a href="/equipment?tab=consumables">Inventory → Consumables</a> to log what gets used here.</p><?php endif; ?>
+  <?php if ($used): ?><ul class="list"><?php foreach ($used as $u): ?>
+    <li><div class="grow"><b><?= h(qty_fmt(abs((float)$u['qty_change']))) ?> <?= h($u['unit']) ?></b> <?= h($u['item']) ?><span class="meta"><?= h(fdate($u['created_at'], 'M j, Y')) ?> · <?= h($u['who'] ?? '—') ?><?= $u['note'] ? ' · ' . h($u['note']) : '' ?></span></div></li>
+  <?php endforeach; ?></ul><?php endif; ?>
 </div>
 
 <div class="grid side">

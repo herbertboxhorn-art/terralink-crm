@@ -65,6 +65,17 @@ $routes = [
 
     ['GET', '/equipment', 'h_equipment'],
     ['GET|POST', '/equipment/new', 'h_equipment_form'],
+    ['GET|POST', '/equipment/receive', 'h_equipment_receive'],
+    ['GET|POST', '/equipment/(\d+)/install', 'h_equipment_install'],
+    ['POST', '/equipment/(\d+)/return', 'h_equipment_return'],
+    ['GET|POST', '/sites/(\d+)/add-equipment', 'h_site_add_equipment'],
+
+    ['GET|POST', '/consumables/new', 'h_consumable_form'],
+    ['GET', '/consumables/(\d+)', 'h_consumable_show'],
+    ['GET|POST', '/consumables/(\d+)/edit', 'h_consumable_form'],
+    ['POST', '/consumables/(\d+)/move', 'h_consumable_move'],
+    ['POST', '/consumables/move', 'h_consumable_move'],
+    ['POST', '/consumables/(\d+)/delete', 'h_consumable_delete'],
     ['GET|POST', '/equipment/(\d+)/edit', 'h_equipment_form'],
     ['POST', '/equipment/(\d+)/delete', 'h_equipment_delete'],
 

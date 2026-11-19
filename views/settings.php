@@ -11,6 +11,7 @@ $fields = [
     <?php foreach ($fields as $k => [$l, $t]): ?>
       <div class="field"><label for="s_<?= $k ?>"><?= h($l) ?></label><input id="s_<?= $k ?>" type="<?= $t ?>"<?= $t === 'number' ? ' step="0.01" min="0"' : '' ?> name="<?= $k ?>" value="<?= h($s[$k] ?? '') ?>"></div>
     <?php endforeach; ?>
+    <div class="field wide"><label for="s_loc">Stock locations (one per line, first is the default)</label><textarea id="s_loc" name="stock_locations" rows="3" placeholder="Shop&#10;Truck 1&#10;Truck 2"><?= h($s['stock_locations'] ?? 'Shop') ?></textarea></div>
     <div class="field wide"><label for="s_terms">Quote terms (printed at the bottom of every quote)</label><textarea id="s_terms" name="quote_terms" rows="4"><?= h($s['quote_terms'] ?? '') ?></textarea></div>
     <div class="formbar" style="grid-column:1/-1"><button class="btn primary" type="submit">Save settings</button></div>
   </form>

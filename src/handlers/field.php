@@ -32,6 +32,9 @@ function h_site_show(int $id): void {
         's'         => $s,
         'equipment' => all("SELECT * FROM equipment WHERE site_id = ? ORDER BY status = 'retired', FIELD(category,'Starlink kit','UniFi','Phone line','VoIP handset','Server','Workstation','Printer','UPS / Power','Other'), model", [$id]),
         'tickets'   => all('SELECT * FROM tickets WHERE site_id = ? ORDER BY status = "closed", created_at DESC LIMIT 30', [$id]),
+        'used'      => all("SELECT m.*, c.name item, c.unit, u.name who FROM consumable_moves m JOIN consumables c ON c.id = m.consumable_id
+                            LEFT JOIN users u ON u.id = m.user_id WHERE m.site_id = ? AND m.reason = 'used' ORDER BY m.created_at DESC LIMIT 30", [$id]),
+        'consumables' => all('SELECT id, name, unit, qty_on_hand FROM consumables WHERE active = 1 ORDER BY name'),
         'timeline'  => all("SELECT a.*, u.name who FROM activities a LEFT JOIN users u ON u.id = a.user_id WHERE a.entity_type = 'site' AND a.entity_id = ? ORDER BY a.created_at DESC", [$id]),
     ]);
 }
@@ -39,62 +42,204 @@ function h_site_show(int $id): void {
 function h_site_delete(int $id): void {
     require_role('admin', 'tech');
     $cid = val('SELECT company_id FROM sites WHERE id = ?', [$id]);
+    // Gear at a deleted site goes back to stock (FK also sets site_id NULL; this fixes the status)
+    q("UPDATE equipment SET site_id = NULL, status = IF(status IN ('active','spare'), 'in_stock', status) WHERE site_id = ?", [$id]);
     q("DELETE FROM activities WHERE entity_type = 'site' AND entity_id = ?", [$id]);
     q('DELETE FROM sites WHERE id = ?', [$id]);
-    flash('Site deleted.');
+    flash('Site deleted. Its equipment was moved back to stock.');
     redirect($cid ? "/companies/$cid#sites" : '/companies');
 }
 
 // ---------- equipment ----------
+function equip_label(array $e): string {
+    return trim($e['category'] . ' ' . ($e['make'] ?? '') . ' ' . ($e['model'] ?? '')) . (!empty($e['serial']) ? " (S/N {$e['serial']})" : '');
+}
+
+/** Inventory page: tabs installed | stock | consumables */
 function h_equipment(): void {
+    $tab = (string)get('tab', 'installed');
+    if (!in_array($tab, ['installed', 'stock', 'consumables'], true)) $tab = 'installed';
     $term = (string)get('q', '');
     $cat = (string)get('category', '');
     $f = (string)get('f', '');
-    $w = []; $p = [];
+    $data = ['title' => 'Inventory', 'tab' => $tab, 'term' => $term, 'cat' => $cat, 'f' => $f,
+             'counts' => [
+                 'installed'   => (int)val('SELECT COUNT(*) FROM equipment WHERE site_id IS NOT NULL'),
+                 'stock'       => (int)val("SELECT COUNT(*) FROM equipment WHERE site_id IS NULL AND status = 'in_stock'"),
+                 'consumables' => (int)val('SELECT COUNT(*) FROM consumables WHERE active = 1'),
+                 'low'         => (int)val('SELECT COUNT(*) FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level'),
+             ]];
+    if ($tab === 'consumables') {
+        $w = ['c.active = 1']; $p = [];
+        if ($term !== '') { $w[] = '(c.name LIKE ? OR c.sku LIKE ? OR c.supplier LIKE ?)'; array_push($p, "%$term%", "%$term%", "%$term%"); }
+        if ($f === 'low') $w[] = 'c.reorder_level IS NOT NULL AND c.qty_on_hand <= c.reorder_level';
+        $data['rows'] = all('SELECT c.* FROM consumables c WHERE ' . implode(' AND ', $w) . ' ORDER BY c.category, c.name', $p);
+        $data['value'] = (float)val('SELECT COALESCE(SUM(qty_on_hand * unit_cost),0) FROM consumables WHERE active = 1 AND unit_cost IS NOT NULL');
+        view('equipment', $data);
+        return;
+    }
+    $w = [$tab === 'stock' ? 'e.site_id IS NULL' : 'e.site_id IS NOT NULL']; $p = [];
     if ($term !== '') {
-        $w[] = '(e.serial LIKE ? OR e.mac LIKE ? OR e.ip_address LIKE ? OR e.model LIKE ? OR e.make LIKE ? OR c.name LIKE ? OR e.phone_number LIKE ?)';
-        array_push($p, ...array_fill(0, 7, "%$term%"));
+        $w[] = '(e.serial LIKE ? OR e.mac LIKE ? OR e.ip_address LIKE ? OR e.model LIKE ? OR e.make LIKE ? OR c.name LIKE ? OR e.phone_number LIKE ? OR e.stock_location LIKE ?)';
+        array_push($p, ...array_fill(0, 8, "%$term%"));
     }
     if ($cat !== '' && in_array($cat, EQUIP_CATEGORIES, true)) { $w[] = 'e.category = ?'; $p[] = $cat; }
-    if ($f === 'warranty') $w[] = "e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 90 DAY";
-    if ($f === 'faulty') $w[] = "e.status = 'faulty'";
-    $rows = all('SELECT e.*, s.name site, s.id site_id, c.name company, c.id company_id FROM equipment e
-                 JOIN sites s ON s.id = e.site_id JOIN companies c ON c.id = s.company_id'
-                 . ($w ? ' WHERE ' . implode(' AND ', $w) : '') . ' ORDER BY c.name, s.name, e.category LIMIT 500', $p);
-    view('equipment', ['title' => 'Equipment', 'rows' => $rows, 'term' => $term, 'cat' => $cat, 'f' => $f]);
+    if ($tab === 'stock' && $f !== 'all') $w[] = "e.status = 'in_stock'";
+    if ($tab === 'installed' && $f === 'warranty') $w[] = "e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 90 DAY";
+    if ($tab === 'installed' && $f === 'faulty') $w[] = "e.status = 'faulty'";
+    $data['rows'] = all('SELECT e.*, s.name site, c.name company, c.id company_id FROM equipment e
+                 LEFT JOIN sites s ON s.id = e.site_id LEFT JOIN companies c ON c.id = s.company_id
+                 WHERE ' . implode(' AND ', $w) . ' ORDER BY ' . ($tab === 'stock' ? 'e.category, e.make, e.model, e.serial' : 'c.name, s.name, e.category') . ' LIMIT 1000', $p);
+    if ($tab === 'stock') {
+        $data['summary'] = all("SELECT category, COUNT(*) n, COALESCE(SUM(cost),0) v FROM equipment WHERE site_id IS NULL AND status = 'in_stock' GROUP BY category ORDER BY n DESC");
+    }
+    view('equipment', $data);
 }
 
 function h_equipment_form(int $id = 0): void {
-    $row = $id ? one('SELECT * FROM equipment WHERE id = ?', [$id]) : ['site_id' => int_or_null(get('site_id')), 'status' => 'active', 'installed_at' => date('Y-m-d')];
+    $row = $id ? one('SELECT * FROM equipment WHERE id = ?', [$id]) : [
+        'site_id' => int_or_null(get('site_id')), 'installed_at' => date('Y-m-d'), 'stock_location' => stock_locations()[0]];
     if ($id && !$row) not_found();
-    $siteId = (int)($row['site_id'] ?? 0);
-    $site = one('SELECT s.*, c.name company FROM sites s JOIN companies c ON c.id = s.company_id WHERE s.id = ?', [$siteId]);
-    if (!$site) { flash('Pick a site first, then add equipment from the site page.', 'warn'); redirect('/companies'); }
-    $def = entity_def('equipment');
+    $siteId = $row['site_id'] ? (int)$row['site_id'] : null;
+    $site = $siteId ? one('SELECT s.*, c.name company FROM sites s JOIN companies c ON c.id = s.company_id WHERE s.id = ?', [$siteId]) : null;
+    if ($siteId && !$site) not_found();
+    $inStock = !$site;
+    if (!$id) $row['status'] = $inStock ? 'in_stock' : 'active';
+    $def = entity_def('equipment', ['in_stock' => $inStock]);
     $errors = [];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         [$vals, $errors] = collect_fields($def);
-        if ($vals['mac']) $vals['mac'] = strtoupper(str_replace('-', ':', $vals['mac']));
+        if (!empty($vals['mac'])) $vals['mac'] = strtoupper(str_replace('-', ':', $vals['mac']));
         if (!$errors) {
             $vals['site_id'] = $siteId;
+            if ($inStock) { $vals['installed_at'] = null; }
+            else { $vals['stock_location'] = null; }
             $newId = save_entity($def, $vals, $id ?: null);
-            $label = trim($vals['category'] . ' ' . ($vals['make'] ?? '') . ' ' . ($vals['model'] ?? '')) . ($vals['serial'] ? " (S/N {$vals['serial']})" : '');
-            log_activity('system', 'site', $siteId, ($id ? 'Equipment updated: ' : 'Equipment installed: ') . $label, (int)$site['company_id']);
-            flash($id ? 'Equipment saved.' : 'Equipment added.');
-            redirect("/sites/$siteId#equipment");
+            if ($site) log_activity('system', 'site', $siteId, ($id ? 'Equipment updated: ' : 'Equipment installed: ') . equip_label($vals), (int)$site['company_id']);
+            flash($id ? 'Equipment saved.' : ($inStock ? 'Added to stock.' : 'Equipment added.'));
+            redirect($site ? "/sites/$siteId#equipment" : '/equipment?tab=stock');
         }
         $row = array_merge($row, $vals);
     }
-    view('form', ['title' => ($id ? 'Edit equipment' : 'Add equipment') . ' — ' . $site['name'], 'def' => $def, 'row' => $row,
-        'errors' => $errors, 'cancel' => "/sites/$siteId", 'deleteUrl' => $id ? "/equipment/$id/delete" : null,
-        'subtitle' => $site['company'] . ' · ' . $site['name']]);
+    view('form', ['title' => ($id ? 'Edit equipment' : ($inStock ? 'Add to stock' : 'Add equipment')) . ($site ? ' — ' . $site['name'] : ''),
+        'def' => $def, 'row' => $row, 'errors' => $errors,
+        'cancel' => $site ? "/sites/$siteId" : '/equipment?tab=stock', 'deleteUrl' => $id ? "/equipment/$id/delete" : null,
+        'subtitle' => $site ? $site['company'] . ' · ' . $site['name'] : 'In stock — not at any site yet',
+        'extraActions' => $id ? ($inStock
+            ? [['Install at a site →', "/equipment/$id/install"]]
+            : [['Return to stock', "/equipment/$id/return", true]]) : []]);
+}
+
+/** Receive several serialized items of one model at once (one row per serial, or N rows without serials) */
+function h_equipment_receive(): void {
+    $errors = []; $v = ['category' => 'UniFi', 'stock_location' => stock_locations()[0], 'purchased_at' => date('Y-m-d'), 'qty' => '1'];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $v = array_map(fn($x) => is_string($x) ? trim($x) : $x, $_POST);
+        $serials = array_values(array_unique(array_filter(array_map('trim', preg_split('/[\r\n,;\t]+/', (string)($v['serials'] ?? ''))))));
+        $qty = $serials ? count($serials) : max(0, (int)($v['qty'] ?? 0));
+        if (!in_array($v['category'] ?? '', EQUIP_CATEGORIES, true)) $errors['category'] = 'Pick a category';
+        if (($v['model'] ?? '') === '') $errors['model'] = 'Required';
+        if ($qty < 1 || $qty > 500) $errors['serials'] = 'Enter serial numbers, or a quantity between 1 and 500';
+        foreach (['cost' => 'number', 'purchased_at' => 'date', 'warranty_until' => 'date'] as $k => $t) {
+            $x = $v[$k] ?? '';
+            if ($x === '') continue;
+            if ($t === 'number' && !is_numeric($x)) $errors[$k] = 'Must be a number';
+            if ($t === 'date' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $x)) $errors[$k] = 'Use YYYY-MM-DD';
+        }
+        if ($serials) {
+            $ph = implode(',', array_fill(0, count($serials), '?'));
+            $dupes = array_column(all("SELECT serial FROM equipment WHERE serial IN ($ph)", $serials), 'serial');
+            if ($dupes) $errors['serials'] = 'Already in the system: ' . implode(', ', array_slice($dupes, 0, 10));
+        }
+        if (!$errors) {
+            $pdo = db(); $pdo->beginTransaction();
+            for ($i = 0; $i < $qty; $i++) {
+                q("INSERT INTO equipment (site_id, category, make, model, serial, status, stock_location, supplier, purchased_at, cost, warranty_until, notes)
+                   VALUES (NULL,?,?,?,?, 'in_stock', ?,?,?,?,?,?)", [
+                    $v['category'], str_or_null($v['make'] ?? null), $v['model'], $serials[$i] ?? null,
+                    str_or_null($v['stock_location'] ?? null), str_or_null($v['supplier'] ?? null), str_or_null($v['purchased_at'] ?? null),
+                    ($v['cost'] ?? '') === '' ? null : (float)$v['cost'], str_or_null($v['warranty_until'] ?? null), str_or_null($v['notes'] ?? null)]);
+            }
+            $pdo->commit();
+            flash("Received $qty × " . trim(($v['make'] ?? '') . ' ' . $v['model']) . ' into stock.');
+            redirect('/equipment?tab=stock');
+        }
+    }
+    view('equipment_receive', ['title' => 'Receive stock', 'v' => $v, 'errors' => $errors]);
+}
+
+/** Install one stock item at a site (pick company → site) */
+function h_equipment_install(int $id): void {
+    $e = one('SELECT * FROM equipment WHERE id = ?', [$id]);
+    if (!$e) not_found();
+    if ($e['site_id']) { flash('That item is already installed at a site.', 'warn'); redirect("/sites/{$e['site_id']}"); }
+    $errors = [];
+    $cid = int_or_null($_POST['company_id'] ?? get('company_id'));
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $sid = int_or_null(post('site_id'));
+        $site = $sid ? one('SELECT * FROM sites WHERE id = ?', [$sid]) : null;
+        if (!$site) $errors['site_id'] = 'Pick the site';
+        $date = (string)post('installed_at', date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $errors['installed_at'] = 'Use YYYY-MM-DD';
+        if (!$errors) {
+            install_items([$id], (int)$site['id'], $date);
+            flash('Installed: ' . equip_label($e) . '.');
+            redirect("/sites/{$site['id']}#equipment");
+        }
+    }
+    view('equipment_install', ['title' => 'Install at a site', 'e' => $e, 'cid' => $cid, 'errors' => $errors]);
+}
+
+/** Moves stock items to a site and logs each on the site timeline */
+function install_items(array $ids, int $siteId, string $date): int {
+    $site = one('SELECT * FROM sites WHERE id = ?', [$siteId]);
+    $n = 0;
+    foreach ($ids as $id) {
+        $e = one("SELECT * FROM equipment WHERE id = ? AND site_id IS NULL AND status = 'in_stock'", [(int)$id]);
+        if (!$e) continue;
+        q("UPDATE equipment SET site_id = ?, status = 'active', installed_at = ?, stock_location = NULL WHERE id = ?", [$siteId, $date, $e['id']]);
+        log_activity('system', 'site', $siteId, 'Installed from stock: ' . equip_label($e), (int)$site['company_id']);
+        $n++;
+    }
+    return $n;
+}
+
+function h_equipment_return(int $id): void {
+    $e = one('SELECT e.*, s.company_id FROM equipment e LEFT JOIN sites s ON s.id = e.site_id WHERE e.id = ?', [$id]);
+    if (!$e) not_found();
+    if (!$e['site_id']) redirect('/equipment?tab=stock');
+    $loc = (string)post('stock_location', stock_locations()[0]);
+    $faulty = post('faulty') ? 'faulty' : 'in_stock';
+    q('UPDATE equipment SET site_id = NULL, status = ?, stock_location = ?, installed_at = NULL WHERE id = ?', [$faulty, $loc, $id]);
+    log_activity('system', 'site', (int)$e['site_id'], 'Removed and returned to stock' . ($faulty === 'faulty' ? ' (faulty)' : '') . ': ' . equip_label($e), (int)$e['company_id']);
+    flash(equip_label($e) . ' returned to stock' . ($faulty === 'faulty' ? ' as faulty' : '') . '.');
+    redirect("/sites/{$e['site_id']}#equipment");
+}
+
+/** Site page → "+ Equipment": pick from stock (multi-select) or create new */
+function h_site_add_equipment(int $id): void {
+    $s = one('SELECT s.*, c.name company FROM sites s JOIN companies c ON c.id = s.company_id WHERE s.id = ?', [$id]);
+    if (!$s) not_found();
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $ids = array_map('intval', (array)($_POST['ids'] ?? []));
+        $date = (string)post('installed_at', date('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
+        $n = $ids ? install_items($ids, $id, $date) : 0;
+        flash($n ? "Installed $n item" . ($n === 1 ? '' : 's') . ' from stock.' : 'Nothing selected.', $n ? 'ok' : 'warn');
+        redirect("/sites/$id#equipment");
+    }
+    $cat = (string)get('category', '');
+    $p = []; $w = '';
+    if ($cat !== '' && in_array($cat, EQUIP_CATEGORIES, true)) { $w = ' AND category = ?'; $p[] = $cat; }
+    $stock = all("SELECT * FROM equipment WHERE site_id IS NULL AND status = 'in_stock'$w ORDER BY category, make, model, serial", $p);
+    view('site_add_equipment', ['title' => 'Add equipment — ' . $s['name'], 's' => $s, 'stock' => $stock, 'cat' => $cat]);
 }
 
 function h_equipment_delete(int $id): void {
     $sid = val('SELECT site_id FROM equipment WHERE id = ?', [$id]);
     q('DELETE FROM equipment WHERE id = ?', [$id]);
-    flash('Equipment removed.');
-    redirect($sid ? "/sites/$sid#equipment" : '/equipment');
+    flash('Equipment deleted.');
+    redirect($sid ? "/sites/$sid#equipment" : '/equipment?tab=stock');
 }
 
 // ---------- tickets ----------

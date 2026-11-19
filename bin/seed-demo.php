@@ -2,11 +2,12 @@
 // LOCAL TESTING ONLY — fills the database with made-up demo records.
 // Refuses to run unless APP_ENV=development.
 require __DIR__ . '/../src/bootstrap.php';
+require __DIR__ . '/../src/handlers/inventory.php';
 if (!IS_DEV) { fwrite(STDERR, "Refusing: APP_ENV is not development.\n"); exit(1); }
 
 $pdo = db();
 $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-foreach (['quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
+foreach (['consumable_moves', 'consumables', 'quote_items', 'quotes', 'tasks', 'tickets', 'equipment', 'sites', 'activities', 'deals', 'contacts', 'companies', 'users', 'login_attempts'] as $t) $pdo->exec("TRUNCATE $t");
 $pdo->exec("UPDATE counters SET value = 0");
 $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
 
@@ -98,5 +99,14 @@ q("INSERT INTO quotes (number, company_id, contact_id, deal_id, title, status, i
 $qid = (int)$pdo->lastInsertId();
 foreach ([['hardware','UniFi Cloud Gateway (demo)',1,'ea',100,1],['hardware','PoE camera (demo)',4,'ea',100,1],['labour','Install & configure',8,'h',100,0],['travel','Travel — 60 km round trip',60,'km',1,0]] as $p => [$k, $d, $qty, $u, $pr, $pst]) {
   q('INSERT INTO quote_items (quote_id, position, kind, description, qty, unit, unit_price, pst_applies) VALUES (?,?,?,?,?,?,?,?)', [$qid, $p, $k, $d, $qty, $u, $pr, $pst]);
+}
+// Stock + consumables (demo)
+q("UPDATE settings SET v = ? WHERE k = 'stock_locations'", ["Shop\nTruck 1\nTruck 2"]);
+foreach ([['UniFi','Ubiquiti','U6 Pro AP','U6P-STK-01',189],['UniFi','Ubiquiti','U6 Pro AP','U6P-STK-02',189],['UniFi','Ubiquiti','UniFi Express','UX-STK-01',159],['Starlink kit','Starlink','Standard Kit','SL-STK-01',499],['VoIP handset','Yealink','T54W','YL-STK-01',229]] as [$cat, $mk, $md, $sn, $cost]) {
+  q("INSERT INTO equipment (site_id, category, make, model, serial, status, stock_location, supplier, purchased_at, cost) VALUES (NULL,?,?,?,?, 'in_stock', 'Shop', 'Demo Supplier', CURDATE(), ?)", [$cat, $mk, $md, $sn, $cost]);
+}
+foreach ([['Cat6 outdoor cable (demo)','Cable','ft',1000,250,0.45],['RJ45 shielded connectors (demo)','Connectors','ea',40,50,0.6],['J-mount pole brackets (demo)','Mounting','ea',3,2,24]] as [$n, $cat, $u, $qty, $re, $cost]) {
+  q('INSERT INTO consumables (name, category, unit, reorder_level, unit_cost, location) VALUES (?,?,?,?,?,?)', [$n, $cat, $u, $re, $cost, 'Shop']);
+  consumable_move((int)$pdo->lastInsertId(), $qty, 'received', null, null, 'Opening stock');
 }
 echo "Demo data loaded. Sign in as herb@terralinksystems.com / demo-password-123\n";

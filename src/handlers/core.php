@@ -16,6 +16,7 @@ function h_dashboard(): void {
                                WHERE e.status = 'active' AND e.warranty_until BETWEEN CURDATE() AND CURDATE() + INTERVAL 60 DAY
                                ORDER BY e.warranty_until LIMIT 8"),
         'overdueCount' => (int)val('SELECT COUNT(*) FROM tasks WHERE done_at IS NULL AND due_date < CURDATE() AND assigned_to = ?', [$me]),
+        'lowStock'     => all('SELECT id, name, unit, qty_on_hand, reorder_level FROM consumables WHERE active = 1 AND reorder_level IS NOT NULL AND qty_on_hand <= reorder_level ORDER BY name LIMIT 8'),
         'travelUnset'  => (float)setting('travel_rate_per_km', '0') <= 0 && is_role('admin'),
     ];
     view('dashboard', $data);
@@ -31,7 +32,7 @@ function h_search(): void {
                                  WHERE CONCAT_WS(' ', ct.first_name, ct.last_name) LIKE ? OR ct.email LIKE ? OR ct.phone LIKE ? OR ct.mobile LIKE ? LIMIT 20", [$like, $like, $like, $like]);
         $res['deals']     = all('SELECT d.id, d.title, d.stage, c.name company FROM deals d LEFT JOIN companies c ON c.id = d.company_id WHERE d.title LIKE ? LIMIT 20', [$like]);
         $res['tickets']   = all('SELECT t.id, t.number, t.subject, t.status, c.name company FROM tickets t JOIN companies c ON c.id = t.company_id WHERE t.subject LIKE ? OR t.number LIKE ? LIMIT 20', [$like, $like]);
-        $res['equipment'] = all('SELECT e.*, s.name site, s.id site_id, c.name company FROM equipment e JOIN sites s ON s.id = e.site_id JOIN companies c ON c.id = s.company_id
+        $res['equipment'] = all('SELECT e.*, s.name site, s.id site_id, c.name company FROM equipment e LEFT JOIN sites s ON s.id = e.site_id LEFT JOIN companies c ON c.id = s.company_id
                                  WHERE e.serial LIKE ? OR e.mac LIKE ? OR e.ip_address LIKE ? OR e.model LIKE ? OR e.phone_number LIKE ? LIMIT 20', [$like, $like, $like, $like, $like]);
         $res['quotes']    = all('SELECT q.id, q.number, q.title, q.status, c.name company FROM quotes q JOIN companies c ON c.id = q.company_id WHERE q.number LIKE ? OR q.title LIKE ? LIMIT 20', [$like, $like]);
     }

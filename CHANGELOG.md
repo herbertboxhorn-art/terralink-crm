@@ -1,5 +1,16 @@
 # TerraLink CRM changelog
 
+## 1.13.0 — 2026-11-19
+- **Invoices** (new menu item, admin/sales). On the 1st of each month the daily job makes a **draft invoice per client** and emails Herb that they're ready to review. Nothing goes to clients until a draft is approved.
+  - What goes on a draft: every closed, billable ticket not yet billed (grouped by ticket, with site and completion date), plus **service plan fees for the coming month** (billed in advance, fee ÷ months between visits).
+  - Logged time nobody billed is added automatically at the field rate ($100/h managed rate for clients on a paid plan) and flagged "auto-billed time" for review.
+- **Review:** change the billing email, terms or note; take a ticket off (it goes back to Ready to bill); remove plan or custom lines; add lines (a negative price makes a credit). "Make drafts now" runs month-end on demand.
+- **Approve & email** (one at a time or ticked in bulk): gives the invoice its number (INV-0001…), sets the invoice and due dates, and emails the PDF to the client from the payment address. If the email fails it stays "Approved, not sent" with a Send button.
+- **Invoice PDF:** groups lines by service plan and ticket, shows GST/PST, and has a "How to pay" box: Interac e-Transfer to payment@terralinksystems.com, EFT, credit card, and "We do not accept cheques."
+- **Payments:** mark an invoice paid (date and method). Overdue invoices are flagged. Void sends a sent invoice's tickets back to Ready to bill; deleting a draft does the same.
+- **Companies:** billing email and payment terms (empty = standard 15 days). **Settings → Invoices:** e-Transfer email, standard terms, who gets the review email, EFT and credit card text, footer note.
+- CSV exports for invoices and invoice lines (for QuickBooks later). Money with a minus sign now shows as -$50.00.
+
 ## 1.12.0 — 2026-11-19
 - **Charges on tickets:** a Charges card on every ticket. Add from the price list (mileage in km, labour in hours, installs, monthly items), override the price, or add a custom line. GST 5% / PST 7% totals are shown on the ticket and in its Details.
 - **Bill logged time:** one button turns the time logged with "+ time…" into a labour line at the rate you pick (rounded up to the quarter hour). Billed time is tracked, so it's never billed twice.

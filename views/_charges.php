@@ -9,7 +9,8 @@ $canBill = is_role('admin', 'sales');
 <div class="card" id="charges">
   <div class="cardhead"><h2>Charges</h2>
     <div class="actions">
-      <?php if ($locked): ?><span class="pill closed">Billed <?= h(fdate($t['billed_at'], 'M j, Y')) ?></span>
+      <?php if ($t['invoice_id'] && ($invNo = val('SELECT COALESCE(number, CONCAT("draft invoice #", id)) FROM invoices WHERE id = ?', [$t['invoice_id']])) !== null): ?><?= is_role('admin', 'sales') ? '<a class="pill closed" href="/invoices/' . (int)$t['invoice_id'] . '">On ' . h($invNo) . '</a>' : '<span class="pill closed">On ' . h($invNo) . '</span>' ?>
+      <?php elseif ($locked): ?><span class="pill closed">Billed <?= h(fdate($t['billed_at'], 'M j, Y')) ?></span>
       <?php elseif ($noCharge): ?><span class="pill">No charge</span>
       <?php else: ?><span class="pill open">Billable</span><?php endif; ?>
       <a class="btn sm" href="/tickets/<?= $id ?>/summary" target="_blank">Work summary PDF</a>
@@ -67,7 +68,7 @@ $canBill = is_role('admin', 'sales');
         <label style="display:flex;align-items:center;gap:6px;font-size:14px" title="For stocked items: take consumables off inventory, or install equipment units at this ticket's site"><input type="checkbox" name="take_stock" value="1" checked> Take from stock</label>
         <button class="btn primary" type="submit">Add charge</button>
       </div>
-      <p class="muted" style="margin:6px 0 0;font-size:13px">Quantity is km for mileage and hours for labour. Leave the price empty to use the price list.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:13px">Quantity is km for mileage and hours for labour. Leave the price empty to use the price list. Closed, billable tickets go on the client's invoice on the 1st; logged time not billed yet is added at the standard rate.</p>
     </form>
 
     <details style="margin-top:10px"><summary style="cursor:pointer;font-size:14px">Custom line (not on the price list)</summary>

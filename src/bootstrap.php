@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.12.0';
-const SCHEMA_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
+const SCHEMA_VERSION = '1.13.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -105,9 +105,11 @@ function next_number(string $name): string {
     // and safe to call inside a caller's transaction.
     q('UPDATE counters SET value = LAST_INSERT_ID(value + 1) WHERE name = ?', [$name]);
     $n = (int)db()->lastInsertId();
-    return $name === 'quote'
-        ? sprintf('Q-%s-%04d', date('Y'), $n)
-        : sprintf('T-%04d', $n);
+    return match ($name) {
+        'quote'   => sprintf('Q-%s-%04d', date('Y'), $n),
+        'invoice' => sprintf('INV-%04d', $n),
+        default   => sprintf('T-%04d', $n),
+    };
 }
 
 // ---------- sessions / security ----------
@@ -171,9 +173,9 @@ function int_or_null(mixed $v): ?int { return ($v === null || $v === '' || !is_n
 function str_or_null(mixed $v): ?string { $v = is_string($v) ? trim($v) : $v; return ($v === null || $v === '') ? null : (string)$v; }
 
 // ---------- formatting ----------
-function money(mixed $n): string { return '$' . number_format((float)$n, 2); }
+function money(mixed $n): string { $n = (float)$n; return ($n < 0 ? '-' : '') . '$' . number_format(abs($n), 2); }
 /** Whole dollars for summaries/KPIs ($45,500), cents only when they matter */
-function money0(mixed $n): string { $n = (float)$n; return '$' . number_format($n, abs($n - round($n)) > 0.004 && abs($n) < 1000 ? 2 : 0); }
+function money0(mixed $n): string { $n = (float)$n; return ($n < 0 ? '-' : '') . '$' . number_format(abs($n), abs($n - round($n)) > 0.004 && abs($n) < 1000 ? 2 : 0); }
 /** Coloured initials dot for a user */
 function avatar(?string $name, mixed $id = 0, string $size = ''): string {
     if (!$name) return '';

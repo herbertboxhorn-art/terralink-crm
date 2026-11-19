@@ -51,6 +51,8 @@ function entity_def_raw(string $name, array $ctx = []): array {
             'town'     => ['Town', 'text'],
             'province' => ['Province', 'text', 'default' => 'BC'],
             'owner_id' => ['Account owner', 'select', 'options' => user_opts(), 'int' => true],
+            'billing_email' => ['Billing email (invoices go here)', 'email', 'placeholder' => 'Leave empty to use the company email'],
+            'payment_terms_days' => ['Payment terms in days (empty = standard ' . setting('invoice_terms_days', '15') . ')', 'number', 'int' => true],
             'notes'    => ['Notes', 'textarea'],
         ]],
         'contact' => ['table' => 'contacts', 'label' => 'Contact', 'fields' => [

@@ -112,7 +112,8 @@ function h_account(): void {
 function h_settings(): void {
     require_role('admin');
     $keys = ['company_name', 'company_phone', 'company_email', 'company_address', 'gst_number',
-             'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations', 'mail_webhook_url', 'sla_urgent', 'sla_high', 'sla_normal', 'sla_low'];
+             'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations', 'mail_webhook_url', 'sla_urgent', 'sla_high', 'sla_normal', 'sla_low',
+             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (post('test_email')) {
             $ok = mail_send([['to' => user()['email'], 'subject' => 'CRM test email', 'html' => '<p>It works! The CRM can send email through n8n.</p>']]);
@@ -120,6 +121,8 @@ function h_settings(): void {
             redirect('/settings#email');
         }
         foreach (['sla_urgent', 'sla_high', 'sla_normal', 'sla_low'] as $k) if (isset($_POST[$k])) $_POST[$k] = (string)max(1, (int)$_POST[$k]);
+        if (isset($_POST['invoice_terms_days'])) $_POST['invoice_terms_days'] = (string)max(0, min(120, (int)$_POST['invoice_terms_days']));
+        foreach (['payment_email', 'invoice_review_email'] as $k) if (isset($_POST[$k]) && trim((string)$_POST[$k]) !== '' && !filter_var(trim((string)$_POST[$k]), FILTER_VALIDATE_EMAIL)) { flash('That email address doesn\'t look right: ' . $_POST[$k], 'bad'); redirect('/settings#invoices'); }
         foreach ($keys as $k) {
             if (!array_key_exists($k, $_POST)) continue;   // only change what the form sent
             q('INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)', [$k, (string)post($k, '')]);

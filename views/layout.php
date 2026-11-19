@@ -56,7 +56,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
   <a href="/quotes"<?= $active('/quotes') ?>><?= $icon('doc') ?>Quotes</a>
   <a href="/catalog"<?= $active('/catalog') ?>><?= $icon('tag') ?>Price list</a>
   <?php if (function_exists('h_plans')): ?><a href="/plans"<?= $active('/plans') ?>><?= $icon('repeat') ?>Service plans</a><?php endif; ?>
-  <?php if (is_role('admin', 'sales')): ?><a href="/billing"<?= $active('/billing') ?>><?= $icon('doc') ?>Billing</a><?php endif; ?>
+  <?php if (is_role('admin', 'sales')): $draftInv = (int)val("SELECT COUNT(*) FROM invoices WHERE status = 'draft'"); ?><a href="/invoices"<?= $active('/invoices') . $active('/billing') ?>><?= $icon('doc') ?>Invoices<?php if ($draftInv): ?><em title="Drafts to review"><?= $draftInv ?></em><?php endif; ?></a><?php endif; ?>
   <div class="ver">v<?= APP_VERSION ?></div>
 </nav>
 

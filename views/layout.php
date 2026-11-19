@@ -37,7 +37,8 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
     <summary aria-label="Account menu"><?= avatar($u['name'], $u['id'], 'lg') ?></summary>
     <div class="menu">
       <div class="who"><b><?= h($u['name']) ?></b><small><?= h(ROLES[$u['role']]) ?></small></div>
-      <a href="/account">My password</a>
+      <a href="/account">My account</a>
+      <a href="/account/2fa">Two-step sign-in</a>
       <?php if (is_role('admin')): $errN = (int)val('SELECT COUNT(*) FROM app_errors WHERE last_at > NOW() - INTERVAL 7 DAY'); ?><a href="/users">Users</a><a href="/settings">Settings</a><a href="/errors">Error log<?= $errN ? ' (' . $errN . ')' : '' ?></a><?php if (function_exists('h_data')): ?><a href="/data">Import &amp; export</a><?php endif; ?><?php endif; ?>
       <div class="themepick" role="group" aria-label="Theme"><button type="button" data-theme-set="light">Light</button><button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="dark">Dark</button></div>
       <form method="post" action="/logout"><?= csrf_field() ?><button type="submit">Sign out</button></form>

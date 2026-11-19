@@ -34,6 +34,9 @@ foreach (glob(APP_ROOT . '/src/handlers/*.php') as $f) if (!str_ends_with($f, 'a
 // [methods, regex, handler, public?]
 $routes = [
     ['GET|POST', '/login', 'h_login', true],
+    ['GET|POST', '/login/2fa', 'h_login_2fa', true],
+    ['GET|POST', '/account/2fa', 'h_account_2fa'],
+    ['POST', '/users/(\d+)/2fa-reset', 'h_user_2fa_reset'],
     ['GET|POST', '/setup', 'h_setup', true],
     ['GET|POST', '/forgot', 'h_forgot', true],
     ['GET|POST', '/reset', 'h_reset', true],

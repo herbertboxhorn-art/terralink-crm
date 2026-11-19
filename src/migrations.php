@@ -374,6 +374,28 @@ function migrations(): array {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             q("INSERT IGNORE INTO settings (k, v) VALUES ('invoice_reminders', '1'), ('portal_assignee', '')");
         },
+        // 1.16.0 — two-factor sign-in (TOTP) for staff
+        '1.16.0' => function (): void {
+            foreach ([
+                'totp_secret'      => 'VARCHAR(255) NULL AFTER password_hash',
+                'totp_enabled_at'  => 'DATETIME NULL AFTER totp_secret',
+                'totp_last_step'   => 'BIGINT UNSIGNED NULL AFTER totp_enabled_at',
+                'totp_recovery'    => 'TEXT NULL AFTER totp_last_step',
+                'totp_required'    => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER totp_recovery',
+            ] as $c => $def) if (!col_exists('users', $c)) db()->exec("ALTER TABLE users ADD COLUMN $c $def");
+            if (!table_exists('trusted_devices')) db()->exec("CREATE TABLE trusted_devices (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id INT UNSIGNED NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                label VARCHAR(190) NULL,
+                expires_at DATETIME NOT NULL,
+                last_used_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_td_user (user_id),
+                CONSTRAINT fk_td_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            q("INSERT IGNORE INTO settings (k, v) VALUES ('twofa_policy', 'optional')");
+        },
     ];
 }
 

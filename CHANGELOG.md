@@ -1,5 +1,12 @@
 # TerraLink CRM changelog
 
+## 1.16.0 — 2026-11-19
+- **Two-step sign-in (2FA) for staff:** after the password, a 6-digit code from an authenticator app (Google/Microsoft Authenticator, 1Password, Authy, Bitwarden…). Set up under My account → Two-step sign-in by scanning a QR code.
+- **You choose in Settings → Security:** optional for everyone, required for admins, or required for everyone. You can also require it for one person (Users → Edit). Anyone required without it is sent to the setup page until it's done.
+- **8 recovery codes** (single use) for a lost phone, **"Trust this device for 30 days"**, and a list of trusted devices with "Forget all".
+- **Admins can reset** someone's 2FA (Users → Edit) when they get a new phone.
+- Security: codes can't be reused, 6 wrong codes locks the code step for 15 minutes, a password-reset link can't skip the code (and forgets trusted devices), secrets are encrypted in the database and backups, and users get an email whenever 2FA is turned on, off, reset or a recovery code is used.
+
 ## 1.15.0 — 2026-11-19 (audit release)
 - **Client waiting:** when a client opens a ticket or replies in the portal, the ticket is flagged "Client waiting" until someone replies to the client, changes the status or closes it (internal notes don't clear it). New "Client waiting" filter on Tickets, a blue count next to Tickets in the menu, badges on tickets and My day, and the dashboard tile. Admins' morning email lists clients waiting on unassigned tickets.
 - **Default assignee for portal tickets:** Settings → Client portal. New portal tickets go straight into that person's My day.

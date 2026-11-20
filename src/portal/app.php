@@ -21,6 +21,8 @@ function portal_dispatch(string $method, string $path): void {
     // [methods, regex, handler, permission|null|'public']
     $routes = [
         ['GET|POST', '/login', 'p_login', 'public'],
+        ['GET|POST', '/login/2fa', 'p_login_2fa', 'public'],
+        ['GET|POST', '/account/2fa', 'p_account_2fa', null],
         ['GET|POST', '/forgot', 'p_forgot', 'public'],
         ['GET|POST', '/reset', 'p_reset', 'public'],
         ['POST', '/logout', 'p_logout', 'public'],
@@ -56,6 +58,8 @@ function portal_dispatch(string $method, string $path): void {
         if (!preg_match('#^' . $pattern . '$#', $path, $m)) continue;
         if ($perm !== 'public') {
             if (!portal_user()) { if ($method === 'GET') $_SESSION['after_login'] = $_SERVER['REQUEST_URI'] ?? '/'; redirect('/login'); }
+            // v1.17: two-step sign-in required but not set up yet → only the setup page until it's done
+            if ($path !== '/account/2fa' && portal_twofa_must_setup(portal_user())) { flash('Set up two-step sign-in to keep your account safe. It takes about a minute.', 'warn'); redirect('/account/2fa'); }
             if ($perm !== null && !portal_can($perm)) p_forbidden();
         }
         if ($method === 'POST') csrf_check();
@@ -91,24 +95,112 @@ function p_login(): void {
         csrf_check();
         $ip = client_ip();
         $email = strtolower((string)post('email', ''));
-        if ((int)val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at > NOW() - INTERVAL 15 MINUTE', [$ip]) >= 8) {
-            $error = 'Too many attempts. Wait 15 minutes and try again.';
+        if (login_throttled($ip, 'portal:' . $email)) {
+            $error = 'Too many attempts. Wait a while and try again.';
         } else {
             $pu = one('SELECT * FROM portal_users WHERE email = ? AND active = 1', [$email]);
             if ($pu && password_verify((string)post('password', ''), $pu['password_hash'])) {
-                session_regenerate_id(true);
-                $_SESSION = ['pid' => (int)$pu['id'], 'after_login' => $_SESSION['after_login'] ?? null];
-                q('UPDATE portal_users SET last_login_at = NOW() WHERE id = ?', [$pu['id']]);
-                q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
+                q('DELETE FROM login_attempts WHERE ip = ? OR email = ?', [$ip, 'portal:' . $email]);
                 $to = $_SESSION['after_login'] ?? '/';
-                unset($_SESSION['after_login']);
-                redirect(is_string($to) && str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
+                if (twofa_enabled($pu) && !twofa_device_trusted((int)$pu['id'], 'portal')) {
+                    session_regenerate_id(true);
+                    $_SESSION = ['pending_2fa' => ['pid' => (int)$pu['id'], 'at' => time(), 'to' => $to]];
+                    redirect('/login/2fa');
+                }
+                p_login_finish($pu, $to);
             }
             q('INSERT INTO login_attempts (ip, email) VALUES (?, ?)', [$ip, 'portal:' . $email]);
             $error = 'Email or password is wrong.';
         }
     }
     p_auth('login', ['title' => 'Sign in', 'error' => $error]);
+}
+
+/** Signs a portal login in for real (after password, and the code when 2FA is on) */
+function p_login_finish(array $pu, mixed $to = '/'): never {
+    session_regenerate_id(true);
+    $_SESSION = ['pid' => (int)$pu['id'], 'sv' => (int)val('SELECT session_ver FROM portal_users WHERE id = ?', [$pu['id']])];
+    q('UPDATE portal_users SET last_login_at = NOW() WHERE id = ?', [$pu['id']]);
+    redirect(is_string($to) && str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
+}
+
+/** GET|POST /login/2fa — second step for portal logins with two-step sign-in */
+function p_login_2fa(): void {
+    $p = $_SESSION['pending_2fa'] ?? null;
+    if (!$p || empty($p['pid']) || time() - (int)$p['at'] > 600) { unset($_SESSION['pending_2fa']); flash('Sign in again.', 'warn'); redirect('/login'); }
+    $pu = one('SELECT * FROM portal_users WHERE id = ? AND active = 1', [(int)$p['pid']]);
+    if (!$pu || !twofa_enabled($pu)) { unset($_SESSION['pending_2fa']); redirect('/login'); }
+    $error = null;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        csrf_check();
+        $ip = client_ip();
+        $key = 'p2fa:' . $pu['id'];
+        $tries = (int)val("SELECT COUNT(*) FROM login_attempts WHERE (ip = ? OR email = ?) AND email LIKE 'p2fa:%' AND created_at > NOW() - INTERVAL 15 MINUTE", [$ip, $key]);
+        if ($tries >= 6) {
+            $error = 'Too many wrong codes. Wait 15 minutes and sign in again.';
+            unset($_SESSION['pending_2fa']);
+        } elseif ($how = twofa_verify($pu, (string)post('code', ''), 'portal_users')) {
+            q('DELETE FROM login_attempts WHERE email = ?', [$key]);
+            if (post('trust')) twofa_trust_device((int)$pu['id'], 'portal');
+            if ($how === 'recovery') {
+                $left = twofa_recovery_left(one('SELECT totp_recovery FROM portal_users WHERE id = ?', [$pu['id']]));
+                flash("You used a recovery code ($left left). If you lost your phone, set up two-step sign-in again under My account.", 'warn');
+                twofa_notice($pu, 'A recovery code was used to sign in', 'client portal');
+            }
+            p_login_finish($pu, $p['to'] ?? '/');
+        } else {
+            q('INSERT INTO login_attempts (ip, email) VALUES (?, ?)', [$ip, $key]);
+            $error = 'That code didn\'t work. Check the time on your phone and try the newest code.';
+        }
+    }
+    p_auth('login_2fa', ['title' => 'Sign-in code', 'error' => $error, 'u' => $pu]);
+}
+
+/** GET|POST /account/2fa — portal login turns two-step sign-in on/off, new recovery codes, forget devices */
+function p_account_2fa(): void {
+    $u = one('SELECT * FROM portal_users WHERE id = ?', [pu_id()]);
+    $err = null; $codes = null; $req = portal_twofa_required($u);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $act = (string)post('action');
+        if ($act === 'enable' && !twofa_enabled($u)) {
+            $secret = (string)($_SESSION['totp_setup'] ?? '');
+            $step = $secret ? totp_match($secret, (string)post('code')) : null;
+            if ($step === null) {
+                $err = 'That code didn\'t match. Scan the QR code again, then type the 6-digit code your app shows now.';
+            } else {
+                q('UPDATE portal_users SET totp_secret = ?, totp_enabled_at = NOW(), totp_last_step = ? WHERE id = ?', [twofa_seal($secret), $step, $u['id']]);
+                unset($_SESSION['totp_setup']);
+                $codes = twofa_new_recovery((int)$u['id'], 'portal_users');
+                if (post('trust')) twofa_trust_device((int)$u['id'], 'portal');
+                twofa_notice($u, 'Two-step sign-in was turned on', 'client portal');
+                $u = one('SELECT * FROM portal_users WHERE id = ?', [pu_id()]);
+            }
+        } elseif (in_array($act, ['recovery', 'disable'], true) && twofa_enabled($u)) {
+            if (!twofa_verify($u, (string)post('code'), 'portal_users')) {
+                $err = 'Enter a current code from your authenticator app (or a recovery code) to confirm.';
+            } elseif ($act === 'recovery') {
+                $codes = twofa_new_recovery((int)$u['id'], 'portal_users');
+                $u = one('SELECT * FROM portal_users WHERE id = ?', [pu_id()]);
+            } elseif ($req) {
+                $err = 'Two-step sign-in is required for your login, so it can\'t be turned off. Lost your phone? Ask ' . setting('company_name', 'TerraLink') . ' to reset it.';
+            } else {
+                q('UPDATE portal_users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL, totp_recovery = NULL WHERE id = ?', [$u['id']]);
+                twofa_forget_devices((int)$u['id'], 'portal');
+                twofa_notice($u, 'Two-step sign-in was turned off', 'client portal');
+                flash('Two-step sign-in is off.');
+                redirect('/account/2fa');
+            }
+        } elseif ($act === 'forget') {
+            twofa_forget_devices((int)$u['id'], 'portal');
+            setcookie(twofa_trust_cookie_name('portal'), '', ['expires' => 1, 'path' => '/']);
+            flash('Trusted devices forgotten. Every device will ask for a code next time.');
+            redirect('/account/2fa');
+        }
+    }
+    if (!twofa_enabled($u)) $_SESSION['totp_setup'] ??= totp_new_secret();
+    pview('account_2fa', ['title' => 'Two-step sign-in', 'u' => $u, 'err' => $err, 'codes' => $codes, 'req' => $req,
+        'secret' => $_SESSION['totp_setup'] ?? null,
+        'devices' => all('SELECT * FROM portal_trusted_devices WHERE user_id = ? AND expires_at > NOW() ORDER BY created_at DESC', [$u['id']])]);
 }
 
 function p_auth(string $name, array $data): void {
@@ -129,8 +221,8 @@ function p_forgot(): void {
         csrf_check();
         $ip = client_ip();
         $email = strtolower((string)post('email', ''));
-        if ((int)val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at > NOW() - INTERVAL 15 MINUTE', [$ip]) >= 8) {
-            $error = 'Too many attempts. Wait 15 minutes and try again.';
+        if (login_throttled($ip, 'portal-reset:' . $email)) {
+            $error = 'Too many attempts. Wait a while and try again.';
         } else {
             q('INSERT INTO login_attempts (ip, email) VALUES (?, ?)', [$ip, 'portal-reset:' . $email]);
             $pu = one('SELECT * FROM portal_users WHERE email = ? AND active = 1', [$email]);
@@ -160,12 +252,18 @@ function p_reset(): void {
         if (strlen($pw) < 10) $errors['password'] = 'At least 10 characters';
         if ($pw !== (string)($_POST['confirm'] ?? '')) $errors['confirm'] = 'Does not match';
         if (!$errors) {
-            q('UPDATE portal_users SET password_hash = ?, last_login_at = NOW() WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $row['portal_user_id']]);
+            q('UPDATE portal_users SET password_hash = ?, session_ver = session_ver + 1 WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $row['portal_user_id']]);
             q('UPDATE portal_resets SET used_at = NOW() WHERE portal_user_id = ? AND used_at IS NULL', [$row['portal_user_id']]);
-            session_regenerate_id(true);
-            $_SESSION = ['pid' => (int)$row['portal_user_id']];
-            flash($row['kind'] === 'invite' ? 'Welcome! Your password is set.' : 'Password changed. You\'re signed in.');
-            redirect('/');
+            $pu = one('SELECT * FROM portal_users WHERE id = ?', [$row['portal_user_id']]);
+            flash($row['kind'] === 'invite' ? 'Welcome! Your password is set.' : 'Password changed.' . (twofa_enabled($pu) ? ' Now enter your sign-in code.' : ' You\'re signed in.'));
+            // A reset link proves the email, not the phone: the code is still needed
+            if (twofa_enabled($pu)) {
+                twofa_forget_devices((int)$pu['id'], 'portal');
+                session_regenerate_id(true);
+                $_SESSION = ['pending_2fa' => ['pid' => (int)$pu['id'], 'at' => time(), 'to' => '/'], 'flash' => $_SESSION['flash'] ?? null];
+                redirect('/login/2fa');
+            }
+            p_login_finish($pu, '/');
         }
     }
     p_auth('reset', ['title' => 'Set password', 'row' => $row, 'token' => $token, 'errors' => $errors]);
@@ -180,8 +278,9 @@ function p_account(): void {
         if (strlen($new) < 10) $errors['new'] = 'At least 10 characters';
         if ($new !== (string)($_POST['confirm'] ?? '')) $errors['confirm'] = 'Does not match';
         if (!$errors) {
-            q('UPDATE portal_users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), pu_id()]);
-            flash('Password changed.');
+            q('UPDATE portal_users SET password_hash = ?, session_ver = session_ver + 1 WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), pu_id()]);
+            $_SESSION['sv'] = (int)val('SELECT session_ver FROM portal_users WHERE id = ?', [pu_id()]);   // keep this session
+            flash('Password changed. You were signed out on your other devices.');
             redirect('/account');
         }
     }

@@ -33,6 +33,9 @@ $fields = [
     <div class="field"><label for="s_2fa">Two-step sign-in (staff)</label><select id="s_2fa" name="twofa_policy">
       <?php foreach (TWOFA_POLICIES as $k => $l): ?><option value="<?= $k ?>"<?= ($s['twofa_policy'] ?? 'optional') === $k ? ' selected' : '' ?>><?= h($l) ?></option><?php endforeach; ?></select></div>
     <div class="field"><label>Who has it on</label><div><?php $on = (int)val('SELECT COUNT(*) FROM users WHERE active = 1 AND totp_enabled_at IS NOT NULL'); $all = (int)val('SELECT COUNT(*) FROM users WHERE active = 1'); ?><?= $on ?> of <?= $all ?> active users · <a href="/users">Users</a><br><span class="muted" style="font-size:13px">When required, people without it are sent to set it up at their next page view. You can also require it per user (Users → Edit).</span></div></div>
+    <div class="field"><label for="s_p2fa">Two-step sign-in (client portal)</label><select id="s_p2fa" name="portal_twofa_policy">
+      <?php foreach (PORTAL_TWOFA_POLICIES as $k => $l): ?><option value="<?= $k ?>"<?= ($s['portal_twofa_policy'] ?? 'money') === $k ? ' selected' : '' ?>><?= h($l) ?></option><?php endforeach; ?></select></div>
+    <div class="field"><label>Sign-in protection</label><div class="muted" style="font-size:13px">8 wrong tries per IP in 15 min, or 10 per account in an hour, then a pause. The CRM sees your IP as <b class="mono"><?= h($seenIp) ?></b><?= $fwdIp !== '' ? ' (forwarded for: <span class="mono">' . h($fwdIp) . '</span>)' : '' ?>. If that's a Hostinger server address rather than yours, tell us.</div></div>
     <h2 id="portal" style="grid-column:1/-1;margin:18px 0 0">Client portal</h2>
     <div class="field"><label for="s_pa">New portal tickets go to</label><select id="s_pa" name="portal_assignee">
       <?php foreach (user_opts() as $k => $l): ?><option value="<?= h($k) ?>"<?= (string)$k === (string)($s['portal_assignee'] ?? '') ? ' selected' : '' ?>><?= h($k === '' ? '— Nobody (admins get the email) —' : $l) ?></option><?php endforeach; ?></select></div>
@@ -42,12 +45,11 @@ $fields = [
 </div>
 
 <div class="card" style="max-width:860px;margin-top:18px">
-  <h2>Website leads API (for n8n)</h2>
-  <p class="muted" style="margin:6px 0 12px">Add an HTTP Request node to the callback branch of the website-forms workflow. Use a Header Auth credential with the name <code>X-CRM-Key</code> and the value below.</p>
+  <h2>API keys (for n8n)</h2>
+  <p class="muted" style="margin:6px 0 12px">n8n sends these in the <code>X-CRM-Key</code> header. Keys live in crm-config.php on the server and are never shown in full here. To give a job its own key, add <code>LEADS_API_KEY</code>, <code>CRON_API_KEY</code> or <code>MAIL_WEBHOOK_KEY</code> to crm-config.php and paste the same value into that n8n credential.</p>
   <dl class="kv">
-    <dt>URL</dt><dd class="mono">POST <?= h($apiUrl) ?></dd>
-    <dt>Header</dt><dd class="mono">X-CRM-Key</dd>
-    <dt>Key</dt><dd><?php if ($apiKey): ?><details><summary style="cursor:pointer">Show key</summary><code class="mono" style="word-break:break-all;user-select:all"><?= h($apiKey) ?></code></details><?php else: ?><span class="err">Not configured</span><?php endif; ?></dd>
+    <dt>Leads URL</dt><dd class="mono">POST <?= h($apiUrl) ?></dd>
+    <?php foreach ($keyInfo as $k): ?><dt><?= h($k['label']) ?></dt><dd><?php if ($k['masked']): ?><span class="mono"><?= h($k['masked']) ?></span> <span class="muted" style="font-size:13px"><?= $k['own'] ? '(own key)' : '(shared CRM_API_KEY)' ?></span><?php else: ?><span class="err">Not configured</span><?php endif; ?></dd><?php endforeach; ?>
   </dl>
 </div>
 

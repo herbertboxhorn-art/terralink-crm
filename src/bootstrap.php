@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.16.0';
-const SCHEMA_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
+const SCHEMA_VERSION = '1.17.0';
 const APP_ROOT = __DIR__ . '/..';
 
 date_default_timezone_set(getenv('APP_TZ') ?: 'America/Vancouver');
@@ -161,9 +161,25 @@ function user(): ?array {
     if ($u !== false) return $u;
     $id = $_SESSION['uid'] ?? null;
     $u = $id ? one('SELECT * FROM users WHERE id = ? AND active = 1', [$id]) : null;
+    // v1.17: a password change/reset, email change, deactivation or 2FA reset bumps session_ver → other sessions end
+    if ($u && (int)($u['session_ver'] ?? 0) !== (int)($_SESSION['sv'] ?? 0)) { unset($_SESSION['uid'], $_SESSION['sv']); $u = null; }
     return $u;
 }
 function uid(): ?int { return user()['id'] ?? null; }
+/** Ends every other session of a staff user (keeps the current one when it's theirs) */
+function bump_session(int $userId): void {
+    q('UPDATE users SET session_ver = session_ver + 1 WHERE id = ?', [$userId]);
+    if ((int)($_SESSION['uid'] ?? 0) === $userId) $_SESSION['sv'] = (int)val('SELECT session_ver FROM users WHERE id = ?', [$userId]);
+}
+
+/**
+ * Login throttling (v1.17): per IP (8 tries / 15 min) and per account (10 tries / hour, any IP),
+ * so rotating IPs can't keep guessing one password. $key is the login_attempts.email value for this account.
+ */
+function login_throttled(string $ip, string $key): bool {
+    if ((int)val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at > NOW() - INTERVAL 15 MINUTE', [$ip]) >= 8) return true;
+    return (int)val('SELECT COUNT(*) FROM login_attempts WHERE email = ? AND created_at > NOW() - INTERVAL 1 HOUR', [$key]) >= 10;
+}
 function require_login(): void {
     if (!user()) { $_SESSION['after_login'] = $_SERVER['REQUEST_URI'] ?? '/'; redirect('/login'); }
     // 2FA required but not set up yet: only the setup page (and sign out) until it's done

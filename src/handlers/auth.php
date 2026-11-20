@@ -8,14 +8,13 @@ function h_login(): void {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_check();
         $ip = client_ip();
-        $recent = (int)val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at > NOW() - INTERVAL 15 MINUTE', [$ip]);
         $email = strtolower((string)post('email', ''));
-        if ($recent >= 8) {
+        if (login_throttled($ip, $email)) {
             $error = 'Too many attempts. Wait 15 minutes and try again.';
         } else {
             $u = one('SELECT * FROM users WHERE email = ? AND active = 1', [$email]);
             if ($u && password_verify((string)post('password', ''), $u['password_hash'])) {
-                q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
+                q('DELETE FROM login_attempts WHERE ip = ? OR email = ?', [$ip, $email]);
                 $to = $_SESSION['after_login'] ?? '/';
                 // Second step unless this device was trusted within the last 30 days
                 if (twofa_enabled($u) && !twofa_device_trusted((int)$u['id'])) twofa_start_pending($u, $to);
@@ -34,6 +33,7 @@ function login_finish(array $u, string $to = '/'): never {
     session_regenerate_id(true);
     unset($_SESSION['pending_2fa'], $_SESSION['after_login']);
     $_SESSION['uid'] = (int)$u['id'];
+    $_SESSION['sv'] = (int)val('SELECT session_ver FROM users WHERE id = ?', [$u['id']]);
     q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$u['id']]);
     redirect(str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
 }
@@ -87,6 +87,8 @@ function h_user_form(int $id = 0): void {
             $cols = array_keys($vals);
             if ($id) {
                 q('UPDATE users SET ' . implode(', ', array_map(fn($c) => "$c = ?", $cols)) . ' WHERE id = ?', [...array_values($vals), $id]);
+                // New password, email or role, or deactivated: sign them out everywhere (v1.17)
+                if ($pw !== '' || $vals['email'] !== $u['email'] || $vals['role'] !== $u['role'] || !$vals['active']) bump_session($id);
             } else {
                 q('INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', array_fill(0, count($cols), '?')) . ')', array_values($vals));
                 if ($invite) {
@@ -118,7 +120,8 @@ function h_account(): void {
         if ($new !== (string)($_POST['confirm'] ?? '')) $errors['confirm'] = 'Does not match';
         if (!$errors) {
             q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), uid()]);
-            flash('Password changed.');
+            bump_session((int)uid());   // other phones/PCs are signed out; this one stays
+            flash('Password changed. You were signed out on your other devices.');
             redirect('/account');
         }
     }
@@ -129,7 +132,7 @@ function h_settings(): void {
     require_role('admin');
     $keys = ['company_name', 'company_phone', 'company_email', 'company_address', 'gst_number',
              'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations', 'mail_webhook_url', 'sla_urgent', 'sla_high', 'sla_normal', 'sla_low',
-             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee', 'twofa_policy'];
+             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee', 'twofa_policy', 'portal_twofa_policy'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (post('test_email')) {
             $ok = mail_send([['to' => user()['email'], 'subject' => 'CRM test email', 'html' => '<p>It works! The CRM can send email through n8n.</p>']]);
@@ -138,6 +141,7 @@ function h_settings(): void {
         }
         foreach (['sla_urgent', 'sla_high', 'sla_normal', 'sla_low'] as $k) if (isset($_POST[$k])) $_POST[$k] = (string)max(1, (int)$_POST[$k]);
         if (isset($_POST['twofa_policy']) && !isset(TWOFA_POLICIES[$_POST['twofa_policy']])) $_POST['twofa_policy'] = 'optional';
+        if (isset($_POST['portal_twofa_policy']) && !isset(PORTAL_TWOFA_POLICIES[$_POST['portal_twofa_policy']])) $_POST['portal_twofa_policy'] = 'money';
         if (isset($_POST['invoice_reminders'])) $_POST['invoice_reminders'] = $_POST['invoice_reminders'] === '1' ? '1' : '0';
         if (isset($_POST['portal_assignee'])) $_POST['portal_assignee'] = (string)(int_or_null($_POST['portal_assignee']) ?? '');
         if (isset($_POST['invoice_terms_days'])) $_POST['invoice_terms_days'] = (string)max(0, min(120, (int)$_POST['invoice_terms_days']));
@@ -150,7 +154,7 @@ function h_settings(): void {
         redirect('/settings');
     }
     $s = array_column(all('SELECT k, v FROM settings'), 'v', 'k');
-    view('settings', ['title' => 'Settings', 's' => $s, 'mails' => all('SELECT * FROM mail_log ORDER BY id DESC LIMIT 15'), 'apiKey' => (string)env('CRM_API_KEY', ''), 'apiUrl' => rtrim((string)env('APP_URL', ''), '/') . '/api/leads']);
+    view('settings', ['title' => 'Settings', 's' => $s, 'mails' => all('SELECT * FROM mail_log ORDER BY id DESC LIMIT 15'), 'keyInfo' => api_key_info(), 'seenIp' => client_ip(), 'fwdIp' => (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''), 'apiUrl' => rtrim((string)env('APP_URL', ''), '/') . '/api/leads']);
 }
 
 // ---------- password reset & invites ----------
@@ -181,8 +185,8 @@ function h_forgot(): void {
         csrf_check();
         $ip = client_ip();
         $email = strtolower((string)post('email', ''));
-        if ((int)val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at > NOW() - INTERVAL 15 MINUTE', [$ip]) >= 8) {
-            $error = 'Too many attempts. Wait 15 minutes and try again.';
+        if (login_throttled($ip, 'reset:' . $email)) {
+            $error = 'Too many attempts. Wait a while and try again.';
         } else {
             q('INSERT INTO login_attempts (ip, email) VALUES (?, ?)', [$ip, 'reset:' . $email]);
             $u = one('SELECT * FROM users WHERE email = ? AND active = 1', [$email]);
@@ -212,7 +216,7 @@ function h_reset(): void {
         if (strlen($pw) < 10) $errors['password'] = 'At least 10 characters';
         if ($pw !== (string)($_POST['confirm'] ?? '')) $errors['confirm'] = 'Does not match';
         if (!$errors) {
-            q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $row['user_id']]);
+            q('UPDATE users SET password_hash = ?, session_ver = session_ver + 1 WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $row['user_id']]);
             q('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$row['user_id']]);
             $u = one('SELECT * FROM users WHERE id = ?', [$row['user_id']]);
             flash($row['kind'] === 'invite' ? 'Welcome aboard! Your password is set.' : 'Password changed.' . (twofa_enabled($u) ? ' Now enter your sign-in code.' : ' You\'re signed in.'));

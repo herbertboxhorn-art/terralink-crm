@@ -20,3 +20,8 @@
     <form method="post" action="/portal-users/<?= (int)$pu['id'] ?>/delete" data-confirm="Remove this portal login? Their tickets and messages stay on record."><?= csrf_field() ?><button class="btn ghost" type="submit" style="color:var(--bad)">Remove login</button></form>
   </div>
 </div>
+<div class="card" style="max-width:760px;margin-top:16px">
+  <div class="cardhead"><h2>Two-step sign-in</h2></div>
+  <p class="muted" style="margin-top:0"><?= twofa_enabled($pu) ? 'On since ' . h(fdate($pu['totp_enabled_at'])) . '.' : 'Not set up.' ?> <?= portal_twofa_required($pu) ? 'Required for this login (Settings → Security).' : 'Optional for this login.' ?> Changing the email above resets their password, so send a new login link afterwards.</p>
+  <?php if (twofa_enabled($pu)): ?><form method="post" action="/portal-users/<?= (int)$pu['id'] ?>/2fa-reset" data-confirm="Reset two-step sign-in for this login? They'll have to set it up again (lost or new phone)."><?= csrf_field() ?><button class="btn" type="submit">Reset two-step sign-in</button></form><?php endif; ?>
+</div>

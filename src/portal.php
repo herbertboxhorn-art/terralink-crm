@@ -45,6 +45,8 @@ function portal_user(): ?array {
     if ($u !== false) return $u;
     $id = $_SESSION['pid'] ?? null;
     $u = $id ? one('SELECT pu.*, c.name company FROM portal_users pu JOIN companies c ON c.id = pu.company_id WHERE pu.id = ? AND pu.active = 1', [$id]) : null;
+    // v1.17: password change/reset, email change or deactivation bumps session_ver → other sessions end
+    if ($u && (int)($u['session_ver'] ?? 0) !== (int)($_SESSION['sv'] ?? 0)) { unset($_SESSION['pid'], $_SESSION['sv']); $u = null; }
     return $u;
 }
 function pu_id(): ?int { return isset(portal_user()['id']) ? (int)portal_user()['id'] : null; }
@@ -113,7 +115,10 @@ function portal_save_user(int $companyId, array $in, ?array $existing, ?array $l
         if ($email === '') $email = strtolower((string)$ct['email']);
     }
     if ($name === '') $errors['name'] = 'Required';
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = 'Not a valid email';
+    // v1.17: a client admin can't re-point a colleague's login to another mailbox (that would let them take it over)
+    $emailChanged = $existing && $email !== strtolower((string)$existing['email']);
+    if ($emailChanged && $limit !== null) $errors['email'] = 'Only ' . setting('company_name', 'TerraLink') . ' can change the email of an existing login. Add a new login instead, or ask us.';
+    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = 'Not a valid email';
     elseif ($other = one('SELECT pu.id, c.name FROM portal_users pu JOIN companies c ON c.id = pu.company_id WHERE pu.email = ? AND pu.id <> ?', [$email, (int)($existing['id'] ?? 0)])) {
         $errors['email'] = 'This email already has a portal login (' . $other['name'] . ')';
     }
@@ -139,6 +144,9 @@ function portal_save_user(int $companyId, array $in, ?array $existing, ?array $l
     if ($existing) {
         q('UPDATE portal_users SET ' . implode(', ', array_map(fn($c) => "$c = ?", array_keys($vals))) . ' WHERE id = ?', [...array_values($vals), (int)$existing['id']]);
         portal_set_sites((int)$existing['id'], $sites);
+        // New email: the old password and every open session stop working; staff send a fresh invite to the new address
+        if ($emailChanged) q('UPDATE portal_users SET password_hash = ?, session_ver = session_ver + 1 WHERE id = ?', [password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT), (int)$existing['id']]);
+        elseif (isset($vals['active']) && !$vals['active']) q('UPDATE portal_users SET session_ver = session_ver + 1 WHERE id = ?', [(int)$existing['id']]);
         return [(int)$existing['id'], []];
     }
     $vals += ['company_id' => $companyId, 'password_hash' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),

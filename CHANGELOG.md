@@ -1,5 +1,8 @@
 # TerraLink CRM changelog
 
+## 1.17.1 — 2026-11-19
+- Fix: creating the 2FA key file used link(), which is disabled on Hostinger shared hosting and broke every page after 1.17.0. Now uses an exclusive create, and a key problem can never block the site.
+
 ## 1.17.0 — 2026-11-19 (security release)
 - Client portal: two-step sign-in (authenticator app, recovery codes, trusted devices). Settings → Security → "Two-step sign-in (client portal)": optional, required for logins with Invoices or Manage users (default), or required for all. Staff can reset it on the portal login page.
 - Client portal: a client's own admin can no longer change a colleague's login email (that allowed taking over a stronger login). When staff change it, the old password and sessions stop working; send a new login link.

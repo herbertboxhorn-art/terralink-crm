@@ -419,7 +419,7 @@ function migrations(): array {
                 CONSTRAINT fk_ptd_user FOREIGN KEY (user_id) REFERENCES portal_users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             q("INSERT IGNORE INTO settings (k, v) VALUES ('portal_twofa_policy', 'money')");
-            twofa_reseal_all();
+            try { twofa_reseal_all(); } catch (\Throwable $e) { app_error_record('2fa reseal: ' . $e->getMessage(), $e->getFile(), $e->getLine()); }   // never block the site
         },
     ];
 }

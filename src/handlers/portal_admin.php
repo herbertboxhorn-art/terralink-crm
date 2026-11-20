@@ -60,3 +60,16 @@ function h_portal_user_delete(int $id): void {
     flash("Portal login for {$pu['name']} removed. Their tickets and messages stay on record.");
     redirect("/companies/{$pu['company_id']}#portal");
 }
+
+/** POST /portal-users/{id}/2fa-reset — client lost their phone (v1.17) */
+function h_portal_user_2fa_reset(int $id): void {
+    portal_admin_guard();
+    $pu = one('SELECT * FROM portal_users WHERE id = ?', [$id]);
+    if (!$pu) not_found();
+    q('UPDATE portal_users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL, totp_recovery = NULL, session_ver = session_ver + 1 WHERE id = ?', [$id]);
+    twofa_forget_devices($id, 'portal');
+    twofa_notice($pu, 'Two-step sign-in was reset by ' . setting('company_name', 'TerraLink'), 'client portal');
+    log_activity('system', 'company', (int)$pu['company_id'], "Portal two-step sign-in reset for {$pu['name']}", (int)$pu['company_id']);
+    flash("Two-step sign-in reset for {$pu['name']}." . (portal_twofa_required($pu) ? ' They\'ll set it up again at their next sign-in.' : ''));
+    redirect("/portal-users/$id/edit");
+}

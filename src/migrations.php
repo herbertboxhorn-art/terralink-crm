@@ -396,6 +396,31 @@ function migrations(): array {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             q("INSERT IGNORE INTO settings (k, v) VALUES ('twofa_policy', 'optional')");
         },
+        // 1.17.0 — security release: session versions, portal 2FA, separate 2FA key
+        '1.17.0' => function (): void {
+            if (!col_exists('users', 'session_ver')) db()->exec('ALTER TABLE users ADD COLUMN session_ver INT UNSIGNED NOT NULL DEFAULT 0');
+            foreach ([
+                'session_ver'      => 'INT UNSIGNED NOT NULL DEFAULT 0',
+                'totp_secret'      => 'VARCHAR(255) NULL AFTER password_hash',
+                'totp_enabled_at'  => 'DATETIME NULL AFTER totp_secret',
+                'totp_last_step'   => 'BIGINT UNSIGNED NULL AFTER totp_enabled_at',
+                'totp_recovery'    => 'TEXT NULL AFTER totp_last_step',
+                'totp_required'    => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER totp_recovery',
+            ] as $c => $def) if (!col_exists('portal_users', $c)) db()->exec("ALTER TABLE portal_users ADD COLUMN $c $def");
+            if (!table_exists('portal_trusted_devices')) db()->exec("CREATE TABLE portal_trusted_devices (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id INT UNSIGNED NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                label VARCHAR(190) NULL,
+                expires_at DATETIME NOT NULL,
+                last_used_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ptd_user (user_id),
+                CONSTRAINT fk_ptd_user FOREIGN KEY (user_id) REFERENCES portal_users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            q("INSERT IGNORE INTO settings (k, v) VALUES ('portal_twofa_policy', 'money')");
+            twofa_reseal_all();
+        },
     ];
 }
 

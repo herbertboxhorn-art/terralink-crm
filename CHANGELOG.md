@@ -1,5 +1,15 @@
 # TerraLink CRM changelog
 
+## 1.17.0 — 2026-11-19 (security release)
+- Client portal: two-step sign-in (authenticator app, recovery codes, trusted devices). Settings → Security → "Two-step sign-in (client portal)": optional, required for logins with Invoices or Manage users (default), or required for all. Staff can reset it on the portal login page.
+- Client portal: a client's own admin can no longer change a colleague's login email (that allowed taking over a stronger login). When staff change it, the old password and sessions stop working; send a new login link.
+- Signing out everywhere: a password change or reset, email or role change, deactivation or 2FA reset ends the person's other sessions (staff and portal).
+- Login throttling also per account (10 tries an hour from any IP), on top of 8 per IP in 15 minutes. Settings shows the IP the CRM sees.
+- 2FA secrets are now encrypted with their own key (crm-2fa.key next to crm-config.php, or TWOFA_KEY), not one derived from the API key. Existing secrets are re-encrypted automatically; nobody has to set up again.
+- API keys can be split per job (LEADS_API_KEY, CRON_API_KEY, MAIL_WEBHOOK_KEY; all fall back to CRM_API_KEY). Settings shows keys masked only.
+- Website leads always create a new company and contact, with a "possible existing client" note, instead of writing into an existing client's records.
+- Techs can't open files attached to quotes.
+
 ## 1.16.0 — 2026-11-19
 - **Two-step sign-in (2FA) for staff:** after the password, a 6-digit code from an authenticator app (Google/Microsoft Authenticator, 1Password, Authy, Bitwarden…). Set up under My account → Two-step sign-in by scanning a QR code.
 - **You choose in Settings → Security:** optional for everyone, required for admins, or required for everyone. You can also require it for one person (Users → Edit). Anyone required without it is sent to the setup page until it's done.

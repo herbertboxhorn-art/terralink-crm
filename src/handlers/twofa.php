@@ -86,6 +86,7 @@ function h_user_2fa_reset(int $id): void {
     if (!$u) not_found();
     q('UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL, totp_recovery = NULL WHERE id = ?', [$id]);
     twofa_forget_devices($id);
+    bump_session($id);
     if ($id !== uid()) twofa_notice($u, 'Two-step sign-in was reset by ' . user()['name']);
     flash("Two-step sign-in reset for {$u['name']}." . (twofa_required($u) ? ' They\'ll set it up again at their next sign-in.' : ''));
     redirect("/users/$id/edit");

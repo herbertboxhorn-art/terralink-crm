@@ -9,7 +9,7 @@
 function mail_send(array $messages): bool {
     if (!$messages) return true;
     $url = setting('mail_webhook_url') ?: 'https://terralinksystems.app.n8n.cloud/webhook/terralink-crm-mail';
-    $key = (string)env('CRM_API_KEY', '');
+    $key = (string)(env('MAIL_WEBHOOK_KEY') ?: env('CRM_API_KEY', ''));
     $payload = ['messages' => array_map(function (array $m) {
         $out = ['to' => $m['to'], 'subject' => $m['subject'], 'html' => mail_wrap($m['html']), 'reply_to' => $m['reply_to'] ?? setting('company_email', '')];
         if (!empty($m['attachment'])) {
@@ -117,4 +117,16 @@ function sla_overdue_sql(string $alias = 't'): string {
         $parts[] = "($alias.priority = '$p' AND $alias.created_at < NOW() - INTERVAL " . sla_hours($p) . ' HOUR)';
     }
     return "($alias.status <> 'closed' AND $alias.first_response_at IS NULL AND (" . implode(' OR ', $parts) . '))';
+}
+
+/** For Settings: which API keys are configured, masked (v1.17 — the full key is never shown in the browser) */
+function api_key_info(): array {
+    $mask = fn(?string $k) => $k ? '••••••••' . substr($k, -4) : null;
+    $base = env('CRM_API_KEY');
+    $out = [];
+    foreach (['LEADS_API_KEY' => 'Website leads (POST /api/leads)', 'CRON_API_KEY' => 'Daily jobs (POST /api/cron/daily)', 'MAIL_WEBHOOK_KEY' => 'Outbound email (n8n webhook)'] as $name => $label) {
+        $own = env($name);
+        $out[] = ['label' => $label, 'name' => $name, 'masked' => $mask($own ?: $base), 'own' => (bool)$own];
+    }
+    return $out;
 }

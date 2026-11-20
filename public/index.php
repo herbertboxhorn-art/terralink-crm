@@ -164,6 +164,7 @@ $routes = [
     ['GET|POST', '/portal-users/(\d+)/edit', 'h_portal_user_edit'],
     ['POST', '/portal-users/(\d+)/invite', 'h_portal_user_invite'],
     ['POST', '/portal-users/(\d+)/delete', 'h_portal_user_delete'],
+    ['POST', '/portal-users/(\d+)/2fa-reset', 'h_portal_user_2fa_reset'],
 
     ['GET', '/errors', 'h_errors'],
     ['POST', '/errors/clear', 'h_errors_clear'],

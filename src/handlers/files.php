@@ -37,6 +37,7 @@ function h_file_upload(): void {
 function h_file_get(int $id, bool $thumb = false): void {
     $f = one('SELECT * FROM files WHERE id = ?', [$id]);
     if (!$f) not_found();
+    if ($f['entity_type'] === 'quote' && is_role('tech')) forbidden();   // v1.17: techs don't see quotes, so not their files either
     file_send($f, $thumb);
 }
 

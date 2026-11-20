@@ -18,6 +18,7 @@
       <div class="grow"><b<?= empty($pu[$k]) ? ' class="muted"' : '' ?>><?= h($label) ?><?= $k === 'perm_tickets' && !empty($pu[$k]) ? (empty($pu['perm_tickets_all']) ? ' (yours)' : ' (whole company)') : '' ?></b><span class="meta"><?= h($hint) ?></span></div></li>
     <?php endforeach; ?>
   </ul>
+  <p style="margin:14px 0 0"><a class="btn sm" href="/account/2fa">Two-step sign-in: <?= twofa_enabled($pu) ? 'On' : 'Off' ?></a></p>
   <p class="muted" style="font-size:13px;margin:12px 0 0">Need more access? Ask your company's portal admin or <?= h(setting('company_name')) ?>.</p>
 </div>
 </div>

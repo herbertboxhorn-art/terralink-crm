@@ -57,16 +57,22 @@ function twofa_key_file(): string { return (defined('CONFIG_DIR') ? CONFIG_DIR :
 function twofa_key(): ?string {
     static $k = false;
     if ($k !== false) return $k;
-    if ($env = env('TWOFA_KEY')) return $k = sodium_crypto_generichash('terralink-crm-2fa-v2|' . $env, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
-    $f = twofa_key_file();
-    if (!is_file($f)) {
-        if (!is_dir(dirname($f))) @mkdir(dirname($f), 0750, true);
-        $tmp = $f . '.' . bin2hex(random_bytes(4));
-        if (@file_put_contents($tmp, bin2hex(random_bytes(32))) !== false) { @chmod($tmp, 0600); if (!@link($tmp, $f)) { /* another request won the race */ } @unlink($tmp); }
+    try {
+        if ($env = env('TWOFA_KEY')) return $k = sodium_crypto_generichash('terralink-crm-2fa-v2|' . $env, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
+        $f = twofa_key_file();
+        if (!is_file($f)) {
+            if (!is_dir(dirname($f))) @mkdir(dirname($f), 0750, true);
+            // 'x' = create only if missing (atomic; another request may win the race). No link(): often disabled on shared hosting.
+            $h = @fopen($f, 'x');
+            if ($h) { fwrite($h, bin2hex(random_bytes(32))); fclose($h); @chmod($f, 0600); }
+        }
+        $raw = is_readable($f) ? trim((string)file_get_contents($f)) : '';
+        if (!preg_match('/^[0-9a-f]{64}$/', $raw)) return $k = null;   // can't create/read it: fall back to the legacy key
+        return $k = sodium_crypto_generichash('terralink-crm-2fa-v2|' . $raw, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
+    } catch (\Throwable $e) {
+        app_error_record('2fa key: ' . $e->getMessage(), $e->getFile(), $e->getLine());
+        return $k = null;
     }
-    $raw = is_readable($f) ? trim((string)file_get_contents($f)) : '';
-    if (!preg_match('/^[0-9a-f]{64}$/', $raw)) return $k = null;   // can't create/read it: fall back to the legacy key
-    return $k = sodium_crypto_generichash('terralink-crm-2fa-v2|' . $raw, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
 }
 /** Pre-1.17 key (derived from CRM_API_KEY). Only used to read old "s:" secrets until the migration re-seals them. */
 function twofa_key_legacy(): string { return sodium_crypto_generichash('terralink-crm-2fa|' . (string)env('CRM_API_KEY', 'dev'), '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES); }

@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "TerraLink Client Portal",
+  "short_name": "TL Portal",
+  "description": "Support tickets, equipment, quotes and invoices from TerraLink Systems",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F1A24",
+  "theme_color": "#0F1A24",
+  "icons": [
+    {"src": "/assets/portal-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/assets/portal-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/assets/portal-icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/assets/portal-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Open a ticket", "url": "/tickets/new", "icons": [{"src": "/assets/portal-icon-192.png", "sizes": "192x192"}]},
+    {"name": "My tickets", "url": "/tickets", "icons": [{"src": "/assets/portal-icon-192.png", "sizes": "192x192"}]}
+  ]
+}

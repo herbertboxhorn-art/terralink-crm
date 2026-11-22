@@ -1,2 +1,23 @@
-{"name":"TerraLink CRM","short_name":"TerraLink","start_url":"/","display":"standalone","background_color":"#0F1A24","theme_color":"#0F1A24",
- "icons":[{"src":"/assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"/assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},{"src":"/assets/favicon.svg","sizes":"any","type":"image/svg+xml"}]}
+{
+  "id": "/",
+  "name": "TerraLink CRM",
+  "short_name": "TerraLink",
+  "description": "TerraLink Systems customer, ticket and field CRM",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F1A24",
+  "theme_color": "#0F1A24",
+  "icons": [
+    {"src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/assets/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "My day", "url": "/today", "icons": [{"src": "/assets/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Tickets", "url": "/tickets", "icons": [{"src": "/assets/icon-192.png", "sizes": "192x192"}]},
+    {"name": "New ticket", "url": "/tickets/new", "icons": [{"src": "/assets/icon-192.png", "sizes": "192x192"}]}
+  ]
+}

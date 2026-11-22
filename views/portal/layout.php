@@ -14,11 +14,14 @@ $coName = setting('company_name', 'TerraLink Systems');
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0F1A24">
 <meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="TL Portal">
 <meta name="csrf" content="<?= h(csrf_token()) ?>">
 <title><?= h($title ?? 'Client portal') ?> · <?= h($coName) ?> client portal</title>
 <script>try{var t=localStorage.getItem('tl-theme')||'auto';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="icon" href="/assets/portal-favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/portal-apple-touch-icon.png">
+<link rel="manifest" href="/portal.webmanifest">
 <link rel="stylesheet" href="/assets/fonts.css?v=<?= APP_VERSION ?>">
 <link rel="stylesheet" href="/assets/app.css?v=<?= APP_VERSION ?>">
 </head>
@@ -32,6 +35,7 @@ $coName = setting('company_name', 'TerraLink Systems');
       <div class="who"><b><?= h($pu['name']) ?></b><small><?= h($pu['company']) ?></small></div>
       <a href="/account">My account</a>
       <?php if (portal_can('is_admin')): ?><a href="/users">Portal users</a><?php endif; ?>
+      <button type="button" data-install hidden>Install app on this device</button>
       <div class="themepick" role="group" aria-label="Theme"><button type="button" data-theme-set="light">Light</button><button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="dark">Dark</button></div>
       <form method="post" action="/logout"><?= csrf_field() ?><button type="submit">Sign out</button></form>
     </div>

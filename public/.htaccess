@@ -4,8 +4,15 @@ Options -Indexes
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^ index.php [QSA,L]
 </IfModule>
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>
 <IfModule mod_headers.c>
-  <FilesMatch "\.(css|js|svg|woff2)$">
+  <FilesMatch "\.(css|js|svg|woff2|png)$">
     Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  # The service worker, manifests and offline page must always be fresh so updates reach installed apps.
+  <FilesMatch "^(sw\.js|.*\.webmanifest|offline\.html)$">
+    Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>

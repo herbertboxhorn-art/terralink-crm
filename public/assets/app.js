@@ -222,3 +222,45 @@ document.querySelectorAll('input[type=file][data-count]').forEach(inp => inp.add
   const msg = inp.closest('form').querySelector('.upmsg');
   if (msg) msg.textContent = inp.files.length ? `${inp.files.length} file${inp.files.length > 1 ? 's' : ''} ready to send` : '';
 }));
+
+// v1.18 installable app: service worker + "Install app" button (Android/Chrome/Edge prompt, iPhone/iPad instructions)
+(() => {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (standalone) return; // already running as an installed app
+  const btns = [...document.querySelectorAll('[data-install]')];
+  if (!btns.length) return;
+  const show = () => btns.forEach(b => { b.hidden = false; b.closest('[data-install-wrap]')?.removeAttribute('hidden'); });
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let deferred = null;
+
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; show(); });
+  addEventListener('appinstalled', () => { deferred = null; btns.forEach(b => { b.hidden = true; b.closest('[data-install-wrap]')?.setAttribute('hidden', ''); }); });
+  if (ios) show();
+
+  const iosHelp = () => {
+    let d = document.getElementById('tl-install-help');
+    if (!d) {
+      d = document.createElement('dialog');
+      d.id = 'tl-install-help'; d.className = 'installdlg';
+      
+      d.innerHTML = `<h3>Add to your Home Screen</h3>
+        <ol><li>Tap the <b>Share</b> button <span aria-hidden="true" class="shareico">⬆︎</span> (bottom of the screen on iPhone, top right on iPad).</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The app opens full screen from its new icon.</li></ol>
+        <p class="muted">Works in Safari. In Chrome on iPhone, the Share button is in the address bar.</p>
+        <form method="dialog"><button class="btn primary">Got it</button></form>`;
+      document.body.appendChild(d);
+    }
+    d.showModal ? d.showModal() : alert('Tap the Share button, then "Add to Home Screen".');
+  };
+
+  btns.forEach(b => b.addEventListener('click', async () => {
+    b.closest('details')?.removeAttribute('open');
+    if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => {}); deferred = null; return; }
+    if (ios) return iosHelp();
+    alert('Open your browser menu and choose "Install app" or "Add to Home screen".');
+  }));
+})();

@@ -1,5 +1,12 @@
 # TerraLink CRM changelog
 
+## 1.18.0 — 2026-11-22
+- Installable app: the CRM and the client portal can be installed on phones and tablets (Android, iPhone/iPad) and desktops, and open full screen from their own icon.
+- Service worker (`/sw.js`): keeps CSS/JS/icons on the device for faster loads; pages and data are never cached. Offline page (`/offline.html`) with Go back / Try again when there's no signal.
+- Separate portal app (`/portal.webmanifest`, "TerraLink Client Portal", dark icon) so the two apps look different on a home screen. Proper maskable icons for Android.
+- "Install app on this device" in the account menu and on the sign-in pages; iPhone/iPad get Add to Home Screen steps.
+- App shortcuts (long-press the icon): My day, Tickets, New ticket (CRM); Open a ticket, My tickets (portal).
+
 ## 1.17.1 — 2026-11-19
 - Fix: creating the 2FA key file used link(), which is disabled on Hostinger shared hosting and broke every page after 1.17.0. Now uses an exclusive create, and a key problem can never block the site.
 

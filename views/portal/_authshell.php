@@ -2,10 +2,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0F1A24"><meta name="robots" content="noindex">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0F1A24"><meta name="robots" content="noindex"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="TL Portal">
 <title><?= h($title ?? 'Sign in') ?> · <?= h(setting('company_name', 'TerraLink Systems')) ?> client portal</title>
 <script>try{var t=localStorage.getItem('tl-theme')||'auto';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="icon" href="/assets/portal-favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/assets/portal-apple-touch-icon.png"><link rel="manifest" href="/portal.webmanifest">
 <link rel="stylesheet" href="/assets/fonts.css?v=<?= APP_VERSION ?>"><link rel="stylesheet" href="/assets/app.css?v=<?= APP_VERSION ?>">
 </head>
 <body>
@@ -15,7 +15,10 @@
     <div><h2>Your IT, <em>in one place</em>.</h2><p>Open and follow support tickets, check your equipment and service visits, and see quotes and invoices, whenever it suits you.</p></div>
     <div class="ft">Need help now? <?= h(setting('company_phone', '778-648-2400')) ?> · <?= h(setting('company_email', 'info@terralinksystems.com')) ?></div>
   </aside>
-  <main class="formside"><div class="box"><?= $inner ?></div></main>
+  <main class="formside"><div class="box"><?= $inner ?>
+  <p class="install-hint" data-install-wrap hidden><button type="button" class="linkbtn" data-install>Install this app on your phone or tablet</button></p>
+  </div></main>
 </div>
+<script src="/assets/app.js?v=<?= APP_VERSION ?>" defer></script>
 </body>
 </html>

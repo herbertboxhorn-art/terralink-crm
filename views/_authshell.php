@@ -2,7 +2,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0F1A24"><meta name="robots" content="noindex">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0F1A24"><meta name="robots" content="noindex"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="TerraLink">
 <title><?= h($title ?? 'Sign in') ?> · TerraLink CRM</title>
 <script>try{var t=localStorage.getItem('tl-theme')||'auto';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest">
@@ -15,7 +15,10 @@
     <div><h2>Every client, site and <em>serial number</em> in one place.</h2><p>Leads from the website, installed gear in the bush, tickets and quotes. Built for Northern BC.</p></div>
     <div class="ft">Houston, BC · <?= h(setting('company_phone', '778-648-2400')) ?></div>
   </aside>
-  <main class="formside"><div class="box"><?= $inner ?></div></main>
+  <main class="formside"><div class="box"><?= $inner ?>
+  <p class="install-hint" data-install-wrap hidden><button type="button" class="linkbtn" data-install>Install this app on your phone or tablet</button></p>
+  </div></main>
 </div>
+<script src="/assets/app.js?v=<?= APP_VERSION ?>" defer></script>
 </body>
 </html>

@@ -354,3 +354,14 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .warr-ok{color:var(--ok)} .warr-soon{color:var(--warn);font-weight:600} .warr-out{color:var(--muted)}
 .pay{white-space:pre-wrap}
 .sidenav em.cw{background:#3D8BFD;color:#fff}
+/* v1.18 installable app */
+[data-install][hidden],[data-install-wrap][hidden]{display:none!important}
+.install-hint{margin:18px 0 0;text-align:center}
+.install-hint .linkbtn{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.install-hint .linkbtn:hover{color:var(--orange)}
+.installdlg{border:0;border-radius:var(--r);background:var(--surface);color:var(--ink);max-width:380px;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.installdlg::backdrop{background:rgba(15,26,36,.6)}
+.installdlg h3{margin:0 0 10px}
+.installdlg ol{padding-left:20px;margin:0 0 10px}.installdlg li{margin:6px 0}
+.installdlg form{margin:14px 0 0;text-align:right}
+.installdlg .shareico{display:inline-block;border:1.5px solid currentColor;border-radius:4px;padding:0 4px;font-size:12px}

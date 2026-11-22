@@ -17,7 +17,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0F1A24">
 <meta name="csrf" content="<?= h(csrf_token()) ?>">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="TerraLink">
 <title><?= h($title ?? 'CRM') ?> · TerraLink CRM</title>
 <script>try{var t=localStorage.getItem('tl-theme')||'auto';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
@@ -40,6 +40,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
       <a href="/account">My account</a>
       <a href="/account/2fa">Two-step sign-in</a>
       <?php if (is_role('admin')): $errN = (int)val('SELECT COUNT(*) FROM app_errors WHERE last_at > NOW() - INTERVAL 7 DAY'); ?><a href="/users">Users</a><a href="/settings">Settings</a><a href="/errors">Error log<?= $errN ? ' (' . $errN . ')' : '' ?></a><?php if (function_exists('h_data')): ?><a href="/data">Import &amp; export</a><?php endif; ?><?php endif; ?>
+      <button type="button" data-install hidden>Install app on this device</button>
       <div class="themepick" role="group" aria-label="Theme"><button type="button" data-theme-set="light">Light</button><button type="button" data-theme-set="auto">Auto</button><button type="button" data-theme-set="dark">Dark</button></div>
       <form method="post" action="/logout"><?= csrf_field() ?><button type="submit">Sign out</button></form>
     </div>

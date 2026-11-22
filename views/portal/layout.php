@@ -25,7 +25,7 @@ $coName = setting('company_name', 'TerraLink Systems');
 <link rel="stylesheet" href="/assets/fonts.css?v=<?= APP_VERSION ?>">
 <link rel="stylesheet" href="/assets/app.css?v=<?= APP_VERSION ?>">
 </head>
-<body class="portal">
+<body class="portal" data-idle="<?= idle_minutes('tlportal') * 60 ?>">
 <header class="topbar">
   <a class="brand" href="/"><img src="/assets/favicon.svg" alt="" width="30" height="30"><span>TerraLink <b>Client portal</b></span></a>
   <div style="flex:1"></div>

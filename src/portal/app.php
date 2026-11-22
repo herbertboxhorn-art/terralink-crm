@@ -26,6 +26,7 @@ function portal_dispatch(string $method, string $path): void {
         ['GET|POST', '/forgot', 'p_forgot', 'public'],
         ['GET|POST', '/reset', 'p_reset', 'public'],
         ['POST', '/logout', 'p_logout', 'public'],
+        ['GET', '/session/ping', 'h_session_ping', null],
         ['GET', '/', 'p_home', null],
         ['GET|POST', '/account', 'p_account', null],
 
@@ -119,7 +120,7 @@ function p_login(): void {
 /** Signs a portal login in for real (after password, and the code when 2FA is on) */
 function p_login_finish(array $pu, mixed $to = '/'): never {
     session_regenerate_id(true);
-    $_SESSION = ['pid' => (int)$pu['id'], 'sv' => (int)val('SELECT session_ver FROM portal_users WHERE id = ?', [$pu['id']])];
+    $_SESSION = ['pid' => (int)$pu['id'], 'seen' => time(), 'sv' => (int)val('SELECT session_ver FROM portal_users WHERE id = ?', [$pu['id']])];
     q('UPDATE portal_users SET last_login_at = NOW() WHERE id = ?', [$pu['id']]);
     redirect(is_string($to) && str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
 }
@@ -209,8 +210,10 @@ function p_auth(string $name, array $data): void {
 }
 
 function p_logout(): void {
+    $idle = post('idle') === '1';
     $_SESSION = [];
-    session_destroy();
+    session_regenerate_id(true);
+    if ($idle) flash('You were signed out after ' . idle_label(idle_minutes('tlportal')) . ' without activity. Sign in again to continue.', 'warn');
     redirect('/login');
 }
 

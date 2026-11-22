@@ -2,7 +2,7 @@
 // Makes the app installable and keeps static files (CSS, JS, icons, fonts) on the device.
 // Pages and data are NEVER cached: they always come live from the server, so nothing
 // private is left on a shared tablet and nobody sees stale tickets or invoices.
-const CACHE = 'tl-static-1.18.2';
+const CACHE = 'tl-static-1.19.0';
 const OFFLINE = '/offline.html';
 
 self.addEventListener('install', e => {

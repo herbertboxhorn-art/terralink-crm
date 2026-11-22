@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const APP_VERSION = '1.18.2';
+const APP_VERSION = '1.19.0';
 const SCHEMA_VERSION = '1.17.0';
 const APP_ROOT = __DIR__ . '/..';
 
@@ -122,7 +122,32 @@ function start_session(string $name = 'tlcrm'): void {
     session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax']);
     ini_set('session.gc_maxlifetime', '43200'); // 12 h — a full field day
     session_start();
+    idle_timeout_check($name);
 }
+
+/** v1.19 sign out after inactivity. Settings: idle_minutes (staff), portal_idle_minutes (client portal). */
+const IDLE_OPTIONS = [5 => '5 minutes', 15 => '15 minutes', 30 => '30 minutes', 60 => '1 hour', 120 => '2 hours', 240 => '4 hours', 480 => '8 hours', 720 => '12 hours'];
+function idle_minutes(string $session = 'tlcrm'): int {
+    $portal = $session === 'tlportal';
+    $m = (int)setting($portal ? 'portal_idle_minutes' : 'idle_minutes', $portal ? '30' : '60');
+    return isset(IDLE_OPTIONS[$m]) ? $m : ($portal ? 30 : 60);
+}
+function idle_label(int $m): string { return IDLE_OPTIONS[$m] ?? "$m minutes"; }
+function idle_timeout_check(string $name): void {
+    $signedIn = !empty($_SESSION['uid']) || !empty($_SESSION['pid']);
+    if (!$signedIn) return;
+    try { $min = idle_minutes($name); } catch (\Throwable $e) { $min = $name === 'tlportal' ? 30 : 60; }
+    $seen = (int)($_SESSION['seen'] ?? time());
+    if (time() - $seen > $min * 60) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        flash('You were signed out after ' . idle_label($min) . ' without activity. Sign in again to continue.', 'warn');
+        return;
+    }
+    $_SESSION['seen'] = time();
+}
+/** GET /session/ping: the page saw someone working (typing, tapping), keep the sign-in alive */
+function h_session_ping(): void { header('Cache-Control: no-store'); http_response_code(204); exit; }
 function h(mixed $s): string { return htmlspecialchars((string)($s ?? ''), ENT_QUOTES, 'UTF-8'); }
 function csrf_token(): string {
     if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));

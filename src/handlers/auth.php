@@ -33,6 +33,7 @@ function login_finish(array $u, string $to = '/'): never {
     session_regenerate_id(true);
     unset($_SESSION['pending_2fa'], $_SESSION['after_login']);
     $_SESSION['uid'] = (int)$u['id'];
+    $_SESSION['seen'] = time();
     $_SESSION['sv'] = (int)val('SELECT session_ver FROM users WHERE id = ?', [$u['id']]);
     q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$u['id']]);
     redirect(str_starts_with($to, '/') && !str_starts_with($to, '//') ? $to : '/');
@@ -47,8 +48,10 @@ function twofa_start_pending(array $u, string $to): never {
 }
 
 function h_logout(): void {
+    $idle = post('idle') === '1';
     $_SESSION = [];
-    session_destroy();
+    session_regenerate_id(true);
+    if ($idle) flash('You were signed out after ' . idle_label(idle_minutes()) . ' without activity. Sign in again to continue.', 'warn');
     redirect('/login');
 }
 
@@ -132,7 +135,7 @@ function h_settings(): void {
     require_role('admin');
     $keys = ['company_name', 'company_phone', 'company_email', 'company_address', 'gst_number',
              'travel_rate_per_km', 'quote_valid_days', 'quote_terms', 'stock_locations', 'mail_webhook_url', 'sla_urgent', 'sla_high', 'sla_normal', 'sla_low',
-             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee', 'twofa_policy', 'portal_twofa_policy'];
+             'payment_email', 'eft_details', 'cc_details', 'invoice_terms_days', 'invoice_review_email', 'invoice_notes', 'invoice_reminders', 'portal_assignee', 'twofa_policy', 'portal_twofa_policy', 'idle_minutes', 'portal_idle_minutes'];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (post('test_email')) {
             $ok = mail_send([['to' => user()['email'], 'subject' => 'CRM test email', 'html' => '<p>It works! The CRM can send email through n8n.</p>']]);
@@ -142,6 +145,8 @@ function h_settings(): void {
         foreach (['sla_urgent', 'sla_high', 'sla_normal', 'sla_low'] as $k) if (isset($_POST[$k])) $_POST[$k] = (string)max(1, (int)$_POST[$k]);
         if (isset($_POST['twofa_policy']) && !isset(TWOFA_POLICIES[$_POST['twofa_policy']])) $_POST['twofa_policy'] = 'optional';
         if (isset($_POST['portal_twofa_policy']) && !isset(PORTAL_TWOFA_POLICIES[$_POST['portal_twofa_policy']])) $_POST['portal_twofa_policy'] = 'money';
+        if (isset($_POST['idle_minutes'])) $_POST['idle_minutes'] = isset(IDLE_OPTIONS[(int)$_POST['idle_minutes']]) ? (string)(int)$_POST['idle_minutes'] : '60';
+        if (isset($_POST['portal_idle_minutes'])) $_POST['portal_idle_minutes'] = isset(IDLE_OPTIONS[(int)$_POST['portal_idle_minutes']]) ? (string)(int)$_POST['portal_idle_minutes'] : '30';
         if (isset($_POST['invoice_reminders'])) $_POST['invoice_reminders'] = $_POST['invoice_reminders'] === '1' ? '1' : '0';
         if (isset($_POST['portal_assignee'])) $_POST['portal_assignee'] = (string)(int_or_null($_POST['portal_assignee']) ?? '');
         if (isset($_POST['invoice_terms_days'])) $_POST['invoice_terms_days'] = (string)max(0, min(120, (int)$_POST['invoice_terms_days']));

@@ -2,6 +2,7 @@
 <h1>Sign in</h1>
 <p class="muted" style="margin:0">Welcome back.</p>
 <?php if ($error): ?><div class="flash bad" style="margin:16px 0 0"><?= h($error) ?></div><?php endif; ?>
+<?php if (!$error && ($f = flash())): ?><div class="flash <?= h($f['type']) ?>" style="margin:16px 0 0"><?= h($f['msg']) ?></div><?php endif; ?>
 <form method="post" action="/login">
   <?= csrf_field() ?>
   <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" autocomplete="username" required autofocus value="<?= h($_POST['email'] ?? '') ?>"></div>

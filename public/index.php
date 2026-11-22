@@ -43,6 +43,7 @@ $routes = [
     ['POST', '/users/(\d+)/invite', 'h_user_invite'],
     ['GET', '/today', 'h_today'],
     ['POST', '/logout', 'h_logout', true],
+    ['GET', '/session/ping', 'h_session_ping'],
 
     ['GET', '/', 'h_dashboard'],
     ['GET', '/search', 'h_search'],

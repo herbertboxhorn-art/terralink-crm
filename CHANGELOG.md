@@ -1,5 +1,9 @@
 # TerraLink CRM changelog
 
+## 1.18.1 — 2026-11-22
+- Phones: a long email address, web link or word (e.g. in a website request message or contact details) no longer makes the page wider than the screen; it wraps inside its card. Applies to every page, not just deals.
+- Phones under ~385 px wide: the account menu (avatar) no longer slides off the right edge of the top bar.
+
 ## 1.18.0 — 2026-11-22
 - Installable app: the CRM and the client portal can be installed on phones and tablets (Android, iPhone/iPad) and desktops, and open full screen from their own icon.
 - Service worker (`/sw.js`): keeps CSS/JS/icons on the device for faster loads; pages and data are never cached. Offline page (`/offline.html`) with Go back / Try again when there's no signal.

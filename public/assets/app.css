@@ -281,10 +281,12 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 @media (max-width:820px){
   .login2{grid-template-columns:1fr}
   .login2 .brandside{padding:24px;border-right:0;border-bottom:4px solid var(--orange)} .login2 .brandside h2,.login2 .brandside p,.login2 .brandside .ft{display:none}
-  .stats{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin:0 -14px 16px;padding:2px 14px 6px;scrollbar-width:none}
-  .stats::-webkit-scrollbar{display:none}
-  .stat{flex:0 0 46%;scroll-snap-align:start;padding:10px 12px}
-  .stat b{font-size:22px} .stat span{font-size:12px}
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:14px}
+  .stat{padding:6px 8px 6px 10px;border-radius:8px;box-shadow:none}
+  .stat::before{width:3px}
+  .stat small{font-size:10px;letter-spacing:.02em;line-height:1.2}
+  .stat b{font-size:19px;line-height:1.15;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat span{display:none}
   .task-add .row{grid-template-columns:1fr 1fr} .task-add .row .btn{grid-column:1/-1}
 }
 /* ---------- dark mode ---------- */

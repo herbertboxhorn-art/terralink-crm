@@ -365,3 +365,8 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .installdlg ol{padding-left:20px;margin:0 0 10px}.installdlg li{margin:6px 0}
 .installdlg form{margin:14px 0 0;text-align:right}
 .installdlg .shareico{display:inline-block;border:1.5px solid currentColor;border-radius:4px;padding:0 4px;font-size:12px}
+/* v1.18.1 phones: long emails, links or words in client text must wrap instead of widening the page */
+.grid>*,.stack>*,.card,.pagehead>div{min-width:0}
+.main :is(h1,h2,h3,p,dd,li,td,.sub,.meta,.body,.grow,.crumb){overflow-wrap:anywhere}
+.main :is(th,.pill,.btn,.money,.num){overflow-wrap:normal}
+@media (max-width:820px){.gsearch{min-width:0;flex:1 1 auto}.gsearch input{min-width:0;width:100%}.topbar>*{flex-shrink:0}.topbar .gsearch{flex-shrink:1}}

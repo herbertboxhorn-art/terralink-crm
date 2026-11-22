@@ -264,3 +264,55 @@ document.querySelectorAll('input[type=file][data-count]').forEach(inp => inp.add
     alert('Open your browser menu and choose "Install app" or "Add to Home screen".');
   }));
 })();
+
+// v1.19 sign out after inactivity (minutes set in Settings → Security). Activity = typing, tapping, scrolling.
+// Shared across tabs via localStorage so an idle tab doesn't sign out someone working in another tab.
+(() => {
+  const limit = parseInt(document.body?.dataset.idle || '0', 10) * 1000;
+  if (!limit) return;
+  const KEY = 'tl_last_active', WARN = Math.min(60000, limit / 3);
+  const store = { get() { try { return parseInt(localStorage.getItem(KEY) || '0', 10); } catch { return 0; } }, set(v) { try { localStorage.setItem(KEY, String(v)); } catch {} } };
+  let local = Date.now(), lastPing = Date.now(), dlg = null, done = false;
+  const lastActive = () => Math.max(local, store.get());
+  const mark = (e) => { if (done) return; local = Date.now(); store.set(local); if (dlg?.open && !(e && dlg.contains(e.target))) dlg.close(); };
+  ['pointerdown', 'keydown', 'input', 'scroll', 'touchstart', 'wheel'].forEach(ev => addEventListener(ev, mark, { passive: true, capture: true }));
+  store.set(local);
+
+  const ping = async () => {
+    lastPing = Date.now();
+    try {
+      const r = await fetch('/session/ping', { credentials: 'same-origin', redirect: 'manual', cache: 'no-store' });
+      if (r.status !== 204) signOut(false);   // already signed out on the server
+    } catch {}   // offline: try again later
+  };
+  const signOut = async (tellServer = true, idle = true) => {
+    if (done) return; done = true;
+    if (tellServer) {
+      const body = new FormData(); if (idle) body.append('idle', '1'); body.append('_csrf', document.querySelector('meta[name=csrf]')?.content || document.querySelector('input[name=_csrf]')?.value || '');
+      try { await fetch('/logout', { method: 'POST', body, credentials: 'same-origin', redirect: 'manual' }); } catch {}
+    }
+    location.href = '/login';
+  };
+  const warn = () => {
+    if (!dlg) {
+      dlg = document.createElement('dialog'); dlg.className = 'installdlg';
+      dlg.innerHTML = '<h3>Still there?</h3><p>You\'ll be signed out in <b data-left>60</b> seconds because nothing has happened for a while.</p><form method="dialog" style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" value="out" type="submit">Sign out</button><button class="btn primary" value="stay" type="submit" autofocus>Stay signed in</button></form>';
+      document.body.appendChild(dlg);
+      dlg.addEventListener('close', () => { if (dlg.returnValue === 'out') signOut(true, false); else { mark(); ping(); } dlg.returnValue = ''; });
+      dlg.addEventListener('cancel', () => { dlg.returnValue = 'stay'; });
+    }
+    if (!dlg.open) { dlg.showModal ? dlg.showModal() : dlg.setAttribute('open', ''); }
+  };
+  const tick = () => {
+    if (done) return;
+    const idle = Date.now() - lastActive();
+    if (idle >= limit) return signOut();
+    if (idle >= limit - WARN) { warn(); const b = dlg?.querySelector('[data-left]'); if (b) b.textContent = Math.max(1, Math.ceil((limit - idle) / 1000)); }
+    else if (dlg?.open) dlg.close();
+    // Someone is working on this page: tell the server now and then so the sign-in stays alive
+    const every = Math.min(5 * 60000, limit / 3);
+    if (lastActive() > lastPing && Date.now() - lastPing > every) ping();
+  };
+  setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+})();

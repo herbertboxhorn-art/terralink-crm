@@ -1,5 +1,10 @@
 # TerraLink CRM changelog
 
+## 1.19.0 — 2026-11-22
+- Sign out after inactivity, set separately for staff and the client portal in Settings → Security (5 min to 12 h; defaults 1 h staff, 30 min portal). Settings `idle_minutes`, `portal_idle_minutes`; no schema change.
+- Enforced on the server (`idle_timeout_check()` in `start_session()`, `$_SESSION['seen']`) and on the page: a 1-minute "Still there?" warning with Stay signed in / Sign out, then automatic sign-out back to the sign-in page with a message. Returning signs you in to the page you were on.
+- Typing, tapping and scrolling count as activity (shared across open tabs); the page pings `GET /session/ping` at most every 5 minutes while someone is working, so long notes don't get lost.
+
 ## 1.18.2 — 2026-11-22
 - Phones: the Home page count boxes are a compact 3-column grid (label + number only) instead of a sideways-swipe row. "Won in" uses the short month name.
 

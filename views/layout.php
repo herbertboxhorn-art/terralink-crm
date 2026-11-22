@@ -27,7 +27,7 @@ $icon = fn(string $n) => '<svg class="i" aria-hidden="true"><use href="/assets/i
 <link rel="stylesheet" href="/assets/fonts.css?v=<?= APP_VERSION ?>">
 <link rel="stylesheet" href="/assets/app.css?v=<?= APP_VERSION ?>">
 </head>
-<body>
+<body data-idle="<?= idle_minutes() * 60 ?>">
 <header class="topbar">
   <a class="brand" href="/"><img src="/assets/favicon.svg" alt="" width="30" height="30"><span>TerraLink <b>CRM</b></span></a>
   <form class="gsearch" action="/search" method="get" role="search">
